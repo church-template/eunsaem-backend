@@ -1,11 +1,35 @@
 {
   "metadata": {
-    "lastUpdated": "2026-09-03T12:52:25Z",
-    "currentVersion": "0.0.45",
+    "lastUpdated": "2026-11-09T15:38:16Z",
+    "currentVersion": "0.0.50",
     "projectType": "spring",
-    "totalReleases": 8
+    "totalReleases": 9
   },
   "releases": [
+    {
+      "version": "0.0.50",
+      "project_type": "spring",
+      "date": "2026-11-09",
+      "pr_number": 77,
+      "raw_summary": "## Summary by CodeRabbit\n\n* **문서**\n  * README를 한국어로 개편하고 프로젝트 소개, 빠른 시작, 기술 스택 및 배포 안내를 추가했습니다.\n  * 내부 설계·구현 계획 문서를 정리했습니다.\n* **유지보수**\n  * CI 및 배포 워크플로에서 사용하는 작업을 최신 버전으로 업데이트했습니다.\n  * 프로젝트 버전을 0.0.50으로 업데이트했습니다.",
+      "parsed_changes": {
+        "문서": {
+          "title": "문서",
+          "items": [
+            "README를 한국어로 개편하고 프로젝트 소개, 빠른 시작, 기술 스택 및 배포 안내를 추가했습니다.",
+            "내부 설계·구현 계획 문서를 정리했습니다."
+          ]
+        },
+        "유지보수": {
+          "title": "유지보수",
+          "items": [
+            "CI 및 배포 워크플로에서 사용하는 작업을 최신 버전으로 업데이트했습니다.",
+            "프로젝트 버전을 0.0.50으로 업데이트했습니다."
+          ]
+        }
+      },
+      "parse_method": "markdown"
+    },
     {
       "version": "0.0.45",
       "project_type": "spring",
