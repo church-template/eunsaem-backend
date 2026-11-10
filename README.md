@@ -125,6 +125,6 @@ src/main/resources/db/migration/   # Flyway 마이그레이션
 ---
 
 <!-- AUTO-VERSION-SECTION: DO NOT EDIT MANUALLY -->
-## 최신 버전 : v0.0.50 (2026-11-09)
+## 최신 버전 : v0.0.51 (2026-11-09)
 
 [전체 버전 기록 보기](CHANGELOG.md)
