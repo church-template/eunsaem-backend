@@ -28,9 +28,10 @@
 name: AUTO UPDATE PROJECT CHANGELOG
 
 on:
-  # pull_request_target 대신 pull_request — 같은 저장소 PR만 처리하므로 포크용 권한 상승이 필요 없고,
-  # GitHub의 공개 저장소 pull_request_target 기본 차단(2026-12-02~)에도 영향받지 않는다.
-  pull_request:
+  # pull_request_target 유지 — 배포 PR의 head(main)는 늘 자동 버전 커밋([skip ci])이라 pull_request는
+  # 트리거되지 않는다. 포크 PR은 아래 job별 같은 저장소 조건으로 막는다.
+  # 2026-12-02부터 공개 저장소의 pull_request_target 기본 차단 → 조직 Actions 이벤트 정책에서 이 워크플로를 허용해야 한다.
+  pull_request_target:
     types: [opened]
     branches: ["deploy"]
 
