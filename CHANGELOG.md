@@ -1,7 +1,18 @@
 # Changelog
 
-**현재 버전:** 0.0.50  
-**마지막 업데이트:** 2026-11-09T15:38:16Z  
+**현재 버전:** 0.0.52  
+**마지막 업데이트:** 2026-11-10T03:06:45Z  
+
+---
+
+## [0.0.52] - 2026-11-10
+
+**PR:** #85  
+
+**기타**
+- Merge pull request #84 from church-template/20261110_#81_pull_request_target_복원_skip_ci_대응
+- Merge pull request #82 from church-template/20261110_#81_기능개선_CI_릴리스_워크플로_트리거를_pull_request로_전환
+- fix : 릴리스 워크플로 트리거를 pull_request로 전환 #81
 
 ---
 

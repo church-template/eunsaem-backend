@@ -1,11 +1,29 @@
 {
   "metadata": {
-    "lastUpdated": "2026-11-09T15:38:16Z",
-    "currentVersion": "0.0.50",
+    "lastUpdated": "2026-11-10T03:06:45Z",
+    "currentVersion": "0.0.52",
     "projectType": "spring",
-    "totalReleases": 9
+    "totalReleases": 10
   },
   "releases": [
+    {
+      "version": "0.0.52",
+      "project_type": "spring",
+      "date": "2026-11-10",
+      "pr_number": 85,
+      "raw_summary": "## Summary by CodeRabbit\n\n## 릴리스 노트\n\n* **기타**\n\n  * Merge pull request #84 from church-template/20261110_#81_pull_request_target_복원_skip_ci_대응\n  * Merge pull request #82 from church-template/20261110_#81_기능개선_CI_릴리스_워크플로_트리거를_pull_request로_전환\n  * fix : 릴리스 워크플로 트리거를 pull_request로 전환 #81\n\n> 💡 더 정확한 릴리스 노트를 원한다면 Claude Code에서 `/github` 스킬로 PR 릴리스 노트를 업데이트할 수 있습니다.",
+      "parsed_changes": {
+        "기타": {
+          "title": "기타",
+          "items": [
+            "Merge pull request #84 from church-template/20261110_#81_pull_request_target_복원_skip_ci_대응",
+            "Merge pull request #82 from church-template/20261110_#81_기능개선_CI_릴리스_워크플로_트리거를_pull_request로_전환",
+            "fix : 릴리스 워크플로 트리거를 pull_request로 전환 #81"
+          ]
+        }
+      },
+      "parse_method": "markdown"
+    },
     {
       "version": "0.0.50",
       "project_type": "spring",
