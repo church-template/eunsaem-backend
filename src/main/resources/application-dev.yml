@@ -7,3 +7,10 @@ spring:
   flyway:
     # 기본 application.yml의 locations(classpath:db/migration)를 덮어쓴다.
     locations: classpath:db/migration,classpath:db/dev
+    # 로컬 개발용 첫 교회 값(V18). 운영 기본 프로필에는 기본값이 없다.
+    placeholders:
+      church_name: ${CHURCH_NAME:개발교회}
+      church_slug: ${CHURCH_SLUG:dev}
+      church_origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+tenant:
+  default-slug: ${TENANT_DEFAULT_SLUG:dev}

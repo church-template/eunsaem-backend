@@ -28,7 +28,7 @@ public interface GalleryAlbumRepository
      */
     @Query(
             value =
-                    "select id as id, title as title from gallery_albums where deleted_at is null and description ~ :pattern",
+                    "select id as id, title as title from gallery_albums where church_id = :churchId and deleted_at is null and description ~ :pattern",
             nativeQuery = true)
-    List<GalleryAlbumRefRow> findReferencesByMedia(@Param("pattern") String pattern);
+    List<GalleryAlbumRefRow> findReferencesByMedia(@Param("pattern") String pattern, @Param("churchId") long churchId);
 }

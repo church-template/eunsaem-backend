@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'com.elipair'
-version = '0.0.52'
+version = '0.0.54'
 description = 'church-backend'
 
 java {
@@ -77,6 +77,11 @@ tasks.named('test') {
     useJUnitPlatform()
     // 테스트 전용 JWT 시크릿(32바이트 이상). 운영 값은 .env의 JWT_SECRET로 주입된다.
     environment 'JWT_SECRET', 'test-only-jwt-secret-please-change-0123456789'
+    // 멀티테넌시(#86): V18이 만드는 첫 교회 값과, 접두사 없는 요청을 처리할 기본 교회.
+    environment 'CHURCH_NAME', '테스트교회'
+    environment 'CHURCH_SLUG', 'dev'
+    environment 'CORS_ALLOWED_ORIGIN', 'http://localhost:3000'
+    environment 'TENANT_DEFAULT_SLUG', 'dev'
     finalizedBy tasks.named('jacocoTestReport')
 }
 

@@ -94,7 +94,7 @@ class DepartmentRepositoryTest {
         repository.saveAndFlush(Department.create("42참조", "본문 ![](media:42) 끝", "김", null, 10));
         repository.saveAndFlush(Department.create("420참조", "본문 ![](media:420) 끝", "김", null, 20));
 
-        List<DepartmentRefRow> rows = repository.findReferencesByMedia("media:42($|[^0-9])");
+        List<DepartmentRefRow> rows = repository.findReferencesByMedia("media:42($|[^0-9])", 1L);
 
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).getTitle()).isEqualTo("42참조"); // title = name 별칭

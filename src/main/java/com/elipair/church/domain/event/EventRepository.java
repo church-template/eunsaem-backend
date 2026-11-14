@@ -22,7 +22,8 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
      * pattern 예: "media:42($|[^0-9])" — 42가 media:420/421에 매칭되지 않는다.
      */
     @Query(
-            value = "select id as id, title as title from events where deleted_at is null and description ~ :pattern",
+            value =
+                    "select id as id, title as title from events where church_id = :churchId and deleted_at is null and description ~ :pattern",
             nativeQuery = true)
-    List<EventRefRow> findReferencesByMedia(@Param("pattern") String pattern);
+    List<EventRefRow> findReferencesByMedia(@Param("pattern") String pattern, @Param("churchId") long churchId);
 }

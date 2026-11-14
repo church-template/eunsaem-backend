@@ -107,8 +107,9 @@ public class MemberService {
     }
 
     @Transactional
-    public MemberDetailResponse changePosition(UUID uuid, Long positionId) {
+    public MemberDetailResponse changePosition(UUID uuid, Long positionId, int requesterMaxPriority) {
         Member member = findActiveByUuid(uuid); // 미존재/탈퇴 → 404
+        validateCanManage(requesterMaxPriority, member);
         Position position = positionId == null
                 ? null
                 : positionRepository
@@ -119,8 +120,9 @@ public class MemberService {
     }
 
     @Transactional
-    public MemberDetailResponse adminUpdate(UUID uuid, AdminMemberUpdateRequest request) {
+    public MemberDetailResponse adminUpdate(UUID uuid, AdminMemberUpdateRequest request, int requesterMaxPriority) {
         Member member = findActiveByUuid(uuid);
+        validateCanManage(requesterMaxPriority, member);
         applyProfile(member, request.name(), request.phone(), request.email(), member.getId());
         return MemberDetailResponse.from(persist(member));
     }
@@ -135,11 +137,22 @@ public class MemberService {
     }
 
     @Transactional
-    public ResetPasswordResponse resetPassword(UUID uuid) {
+    public ResetPasswordResponse resetPassword(UUID uuid, int requesterMaxPriority) {
         Member member = findActiveByUuid(uuid);
+        validateCanManage(requesterMaxPriority, member);
         String temporary = TemporaryPasswords.generate();
         member.changePassword(passwordEncoder.encode(temporary));
         return new ResetPasswordResponse(temporary);
+    }
+
+    /**
+     * 관리자가 <b>다른 회원</b>을 바꾸는 작업(정보 수정·직분 지정·비밀번호 초기화)의 위계 검사(#86).
+     * 대상의 최고 priority가 요청자의 maxPriority보다 높으면 403 — MEMBER_MANAGE만 보면 교회 ADMIN이
+     * 교회 대표자(SUPER_ADMIN)의 비밀번호를 초기화해 계정을 가져가거나 전화번호를 바꿔 잠글 수 있다.
+     * 동급은 허용한다(막으려는 것은 위로의 권한 상승이고, ADMIN끼리 비밀번호 초기화는 일상 운영이다).
+     */
+    private void validateCanManage(int requesterMaxPriority, Member target) {
+        hierarchyValidator.validateAssignable(requesterMaxPriority, MemberAuthorities.maxPriority(target));
     }
 
     /** 이름·전화번호·이메일 부분 수정 + 전화번호 자기제외 중복 체크. */

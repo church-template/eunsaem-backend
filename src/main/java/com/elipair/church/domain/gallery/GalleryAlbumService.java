@@ -10,6 +10,7 @@ import com.elipair.church.domain.tag.ContentResourceType;
 import com.elipair.church.domain.tag.ContentTagService;
 import com.elipair.church.global.exception.BusinessException;
 import com.elipair.church.global.exception.ErrorCode;
+import com.elipair.church.global.tenant.TenantContext;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -56,7 +57,7 @@ public class GalleryAlbumService {
                 page.map(GalleryAlbum::getUpdatedBy).getContent());
         Map<Long, Long> thumbMap = ids.isEmpty()
                 ? Map.of()
-                : photoRepository.findThumbnails(ids).stream()
+                : photoRepository.findThumbnails(ids, TenantContext.require()).stream()
                         .collect(Collectors.toMap(AlbumThumbnailRow::getAlbumId, AlbumThumbnailRow::getMediaId));
         Map<Long, Long> countMap = ids.isEmpty()
                 ? Map.of()

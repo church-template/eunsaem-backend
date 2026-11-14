@@ -15,6 +15,12 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # V18이 첫 교회 행을 만들 때 읽는다. 기본값을 두지 않는다 — 운영에서 값이 빠지면 기동이 실패해야 한다
+    # (기본값이 들어가면 기존 교회가 엉뚱한 이름·주소로 영구 기록된다). dev·test는 각자 값을 준다.
+    placeholders:
+      church_name: ${CHURCH_NAME}
+      church_slug: ${CHURCH_SLUG}
+      church_origin: ${CORS_ALLOWED_ORIGIN}
   data:
     redis:
       host: ${REDIS_HOST:redis}
@@ -44,17 +50,13 @@ jwt:
   secret: ${JWT_SECRET}
   access-expiry: ${JWT_ACCESS_EXPIRY:3600}
   refresh-expiry: ${JWT_REFRESH_EXPIRY:1209600}
-cors:
-  allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+tenant:
+  # 접두사(/church/{slug}) 없는 /api/** 요청을 처리할 교회. 비우면 404. 로컬·테스트·전환 기간 전용(#86).
+  default-slug: ${TENANT_DEFAULT_SLUG:}
 file:
   upload-dir: ${FILE_UPLOAD_DIR:/app/uploads}
   base-url: ${FILE_BASE_URL:http://localhost:8080/api/media}
   max-size: ${FILE_MAX_SIZE:10485760}
-admin:
-  bootstrap:
-    phone: ${ADMIN_PHONE:}
-    name: ${ADMIN_NAME:}
-    password: ${ADMIN_PASSWORD:}
 cache:
   ttl: ${CACHE_TTL:60} # 캐시 TTL(초). /api/main 통합 조회 캐싱(스펙 §9)
 view:

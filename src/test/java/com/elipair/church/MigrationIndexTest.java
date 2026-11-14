@@ -2,6 +2,7 @@ package com.elipair.church;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.elipair.church.global.config.JpaConfig;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -21,7 +22,7 @@ import org.springframework.test.context.TestPropertySource;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, JpaConfig.class}) // JpaConfig = 테넌트 리졸버(#86)
 @TestPropertySource(properties = {"spring.flyway.enabled=true", "spring.jpa.hibernate.ddl-auto=validate"})
 class MigrationIndexTest {
 
@@ -56,10 +57,10 @@ class MigrationIndexTest {
 
     @Test
     void members_phone_unique_is_partial_on_active_rows() {
-        assertThat(indexDef("uq_members_phone_active"))
-                .as("V3 전화번호 부분 유니크(번호 재활용 허용)")
+        assertThat(indexDef("uq_members_church_phone_active"))
+                .as("V3 전화번호 부분 유니크(번호 재활용 허용) — V19에서 교회 단위로 교체(#86)")
                 .isNotNull()
-                .contains("phone")
+                .contains("(church_id, phone)")
                 .contains("deleted_at IS NULL");
     }
 

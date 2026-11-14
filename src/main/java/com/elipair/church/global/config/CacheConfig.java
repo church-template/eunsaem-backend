@@ -1,5 +1,6 @@
 package com.elipair.church.global.config;
 
+import com.elipair.church.global.tenant.TenantContext;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
@@ -40,6 +41,9 @@ public class CacheConfig {
                 .build();
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofSeconds(ttlSeconds))
+                // 멀티테넌시(#86): 캐시 키 접두사에 교회 id를 넣는다("main::{churchId}::"). 접두사는 호출마다 계산되므로
+                // @Cacheable/@CacheEvict는 그대로 두고, 조회와 무효화(allEntries 포함)가 모두 현재 교회 키에만 닿는다.
+                .computePrefixWith(cacheName -> cacheName + "::" + TenantContext.require() + "::")
                 .disableCachingNullValues()
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
                         GenericJacksonJsonRedisSerializer.builder()

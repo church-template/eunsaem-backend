@@ -146,6 +146,50 @@ class RoleApiTest {
                 .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT_VALUE"));
     }
 
+    /**
+     * 역할의 priority를 정할 때(생성·변경)는 요청자보다 엄격히 낮아야 한다.
+     * 같아도 되면, ADMIN이 낮은 역할을 누군가에게 준 뒤 그 역할을 자기 등급까지 올려 "동급은 위임 불가" 규칙을 우회한다.
+     */
+    @Test
+    void create_priority_equal_to_requester_is_403() throws Exception {
+        mockMvc.perform(post("/api/admin/roles")
+                        .header("Authorization", token(900, "ROLE_MANAGE"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"PEER\",\"priority\":900,\"description\":\"d\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+    }
+
+    @Test
+    void patch_raising_priority_to_requester_level_is_403_but_just_below_is_allowed() throws Exception {
+        long id = createRole("HELPER", 100);
+
+        mockMvc.perform(patch("/api/admin/roles/" + id)
+                        .header("Authorization", token(900, "ROLE_MANAGE"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priority\":900}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/admin/roles/" + id)
+                        .header("Authorization", token(900, "ROLE_MANAGE"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priority\":899}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priority").value(899));
+    }
+
+    @Test
+    void patch_keeping_the_same_priority_on_an_equal_level_role_is_allowed() throws Exception {
+        // 동급 역할의 이름·설명 수정은 계속 허용된다 — priority를 그대로 보내도(전체 폼 전송) 변경이 아니므로 통과.
+        long id = createRole("PEERROLE", 900); // 최고 관리자(1000)가 만든 900 역할
+
+        mockMvc.perform(patch("/api/admin/roles/" + id)
+                        .header("Authorization", token(900, "ROLE_MANAGE"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priority\":900,\"description\":\"설명 수정\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.description").value("설명 수정"));
+    }
+
     @Test
     void patch_updates_priority_within_level() throws Exception {
         long id = createRole("EDITOR", 500);

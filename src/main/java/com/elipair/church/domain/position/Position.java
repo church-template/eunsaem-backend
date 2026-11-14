@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,7 +17,12 @@ import lombok.NoArgsConstructor;
  * soft delete·낙관락·작성자 없이 created_at만 갖는 마스터 데이터라 BaseTimeEntity를 상속한다.
  */
 @Entity
-@Table(name = "positions")
+@Table(
+        name = "positions",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uq_positions_church_name",
+                        columnNames = {"church_id", "name"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Position extends BaseTimeEntity {
@@ -25,7 +31,7 @@ public class Position extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String name;
 
     @Column(name = "sort_order", nullable = false)

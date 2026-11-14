@@ -56,6 +56,9 @@ class AuthServiceTest {
     @Mock
     private AccessTokenBlacklister accessTokenBlacklister;
 
+    @Mock
+    private LoginRateLimiter loginRateLimiter;
+
     @InjectMocks
     private AuthService authService;
 
@@ -100,7 +103,7 @@ class AuthServiceTest {
     void login_unknown_phone_is_authentication_failed() {
         when(memberRepository.findByPhoneAndDeletedAtIsNull("01012345678")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.login(new LoginRequest("010-1234-5678", "pw")))
+        assertThatThrownBy(() -> authService.login(new LoginRequest("010-1234-5678", "pw"), "1.1.1.1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTHENTICATION_FAILED);
@@ -112,7 +115,7 @@ class AuthServiceTest {
         when(memberRepository.findByPhoneAndDeletedAtIsNull("01012345678")).thenReturn(Optional.of(m));
         when(passwordEncoder.matches(eq("pw"), anyString())).thenReturn(false);
 
-        assertThatThrownBy(() -> authService.login(new LoginRequest("010-1234-5678", "pw")))
+        assertThatThrownBy(() -> authService.login(new LoginRequest("010-1234-5678", "pw"), "1.1.1.1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTHENTICATION_FAILED); // 미존재와 동일 코드 — 열거 방지

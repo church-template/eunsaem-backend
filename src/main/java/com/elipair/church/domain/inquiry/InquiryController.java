@@ -2,6 +2,7 @@ package com.elipair.church.domain.inquiry;
 
 import com.elipair.church.domain.inquiry.dto.InquiryCreateRequest;
 import com.elipair.church.domain.inquiry.dto.InquiryCreatedResponse;
+import com.elipair.church.global.web.ClientIp;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,15 +36,7 @@ public class InquiryController {
     @PostMapping("/api/inquiries")
     public ResponseEntity<InquiryCreatedResponse> create(
             @Valid @RequestBody InquiryCreateRequest request, HttpServletRequest servletRequest) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request, clientIp(servletRequest)));
-    }
-
-    /** 리버스 프록시(nginx) 뒤에 서므로 X-Forwarded-For의 첫 홉을 우선 사용한다. */
-    private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(service.create(request, ClientIp.resolve(servletRequest)));
     }
 }

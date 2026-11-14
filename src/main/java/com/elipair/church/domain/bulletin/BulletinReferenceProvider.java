@@ -2,6 +2,7 @@ package com.elipair.church.domain.bulletin;
 
 import com.elipair.church.domain.media.MediaReferenceProvider;
 import com.elipair.church.global.common.ContentRef;
+import com.elipair.church.global.tenant.TenantContext;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ class BulletinReferenceProvider implements MediaReferenceProvider {
 
     @Override
     public List<ContentRef> findReferences(long mediaId) {
-        return repository.findReferencesByMediaId(mediaId).stream()
+        return repository.findReferencesByMediaId(mediaId, TenantContext.require()).stream()
                 .map(row -> new ContentRef("bulletin", row.getId(), row.getTitle()))
                 .toList();
     }

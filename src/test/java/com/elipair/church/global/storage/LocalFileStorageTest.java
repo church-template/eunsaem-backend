@@ -43,7 +43,7 @@ class LocalFileStorageTest {
         byte[] content = "hello".getBytes(StandardCharsets.UTF_8);
         String key = storage.store(file("photo.JPG", content));
 
-        assertThat(key).matches("\\d{4}/\\d{2}/[0-9a-f-]{36}\\.jpg");
+        assertThat(key).matches("churches/1/\\d{4}/\\d{2}/[0-9a-f-]{36}\\.jpg");
         assertThat(Files.readAllBytes(tempDir.resolve(key))).isEqualTo(content);
     }
 
@@ -67,14 +67,14 @@ class LocalFileStorageTest {
     @Test
     void store_without_extension_succeeds() {
         String key = storage.store(file("noext", "x".getBytes(StandardCharsets.UTF_8)));
-        assertThat(key).matches("\\d{4}/\\d{2}/[0-9a-f-]{36}");
+        assertThat(key).matches("churches/1/\\d{4}/\\d{2}/[0-9a-f-]{36}");
     }
 
     @Test
     void store_sanitizes_malicious_filename_extension() {
         for (String name : new String[] {"a.jpg/../evil", "weird.<script>", "a."}) {
             String key = storage.store(file(name, "x".getBytes(StandardCharsets.UTF_8)));
-            assertThat(key).matches("\\d{4}/\\d{2}/[0-9a-f-]{36}(\\.[a-z0-9]{1,10})?");
+            assertThat(key).matches("churches/1/\\d{4}/\\d{2}/[0-9a-f-]{36}(\\.[a-z0-9]{1,10})?");
             assertThat(key).doesNotContain("..", "<", ">");
             assertThat(tempDir.resolve(key).normalize()).startsWith(tempDir);
         }
@@ -206,5 +206,26 @@ class LocalFileStorageTest {
             Files.deleteIfExists(link);
             Files.deleteIfExists(external);
         }
+    }
+
+    /** 멀티테넌시(#86): 새 파일의 키는 교회별 접두사로 시작한다 — S3로 옮길 때 그대로 객체 키가 된다. */
+    @Test
+    void store_key_starts_with_church_prefix() {
+        String key = com.elipair.church.global.tenant.TenantContext.callAs(
+                7L, () -> storage.store(file("a.jpg", "x".getBytes(StandardCharsets.UTF_8))));
+        assertThat(key).matches("churches/7/\\d{4}/\\d{2}/[0-9a-f-]{36}\\.jpg");
+    }
+
+    /** 전환 전에 저장된 파일(접두사 없는 키)은 옮기지 않는다 — 키만으로 그대로 읽고 지울 수 있어야 한다. */
+    @Test
+    void legacy_key_without_church_prefix_still_loads_and_deletes() throws IOException {
+        Path legacy = tempDir.resolve("2026/06/legacy.jpg");
+        Files.createDirectories(legacy.getParent());
+        Files.write(legacy, "old".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(storage.load("2026/06/legacy.jpg").getContentAsByteArray())
+                .isEqualTo("old".getBytes(StandardCharsets.UTF_8));
+        storage.delete("2026/06/legacy.jpg");
+        assertThat(legacy).doesNotExist();
     }
 }

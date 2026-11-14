@@ -2,6 +2,7 @@ package com.elipair.church.domain.gallery;
 
 import com.elipair.church.domain.media.MediaReferenceProvider;
 import com.elipair.church.global.common.ContentRef;
+import com.elipair.church.global.tenant.TenantContext;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +22,7 @@ class GalleryAlbumReferenceProvider implements MediaReferenceProvider {
     @Override
     public List<ContentRef> findReferences(long mediaId) {
         String pattern = "media:" + mediaId + "($|[^0-9])";
-        return repository.findReferencesByMedia(pattern).stream()
+        return repository.findReferencesByMedia(pattern, TenantContext.require()).stream()
                 .map(row -> new ContentRef("gallery_album", row.getId(), row.getTitle()))
                 .toList();
     }

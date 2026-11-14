@@ -71,7 +71,7 @@ class GalleryPhotoRepositoryTest {
         photoRepository.saveAndFlush(GalleryPhoto.create(a1, 101L, 0)); // a1 대표
         photoRepository.saveAndFlush(GalleryPhoto.create(a2, 200L, 0)); // a2 대표
 
-        List<AlbumThumbnailRow> rows = photoRepository.findThumbnails(List.of(a1, a2));
+        List<AlbumThumbnailRow> rows = photoRepository.findThumbnails(List.of(a1, a2), 1L);
 
         assertThat(rows).hasSize(2);
         assertThat(rows).anySatisfy(r -> {
@@ -97,7 +97,7 @@ class GalleryPhotoRepositoryTest {
         photoRepository.saveAndFlush(GalleryPhoto.create(live, 42L, 0));
         photoRepository.saveAndFlush(GalleryPhoto.create(live, 42L, 1)); // 같은 media 중복 → DISTINCT 1건
 
-        List<GalleryPhotoRefRow> rows = photoRepository.findReferencesByMediaId(42L);
+        List<GalleryPhotoRefRow> rows = photoRepository.findReferencesByMediaId(42L, 1L);
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).getTitle()).isEqualTo("라이브앨범");
 
@@ -106,6 +106,6 @@ class GalleryPhotoRepositoryTest {
         dead.softDelete();
         Long deadId = albumRepository.saveAndFlush(dead).getId();
         photoRepository.saveAndFlush(GalleryPhoto.create(deadId, 77L, 0));
-        assertThat(photoRepository.findReferencesByMediaId(77L)).isEmpty();
+        assertThat(photoRepository.findReferencesByMediaId(77L, 1L)).isEmpty();
     }
 }

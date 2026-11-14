@@ -54,7 +54,7 @@ public class RoleController {
             - 인증(JWT): 필요 — `ROLE_MANAGE`
             - 요청 본문: `RoleCreateRequest` — `name`(필수, ≤50)·`priority`(필수)·`description`(선택, ≤255)
             - 반환값: `RoleResponse` — 생성된 역할(201 Created); 권한 미할당 상태
-            - 부수효과: 위계검증 — `priority`가 요청자 maxPriority 초과 시 403(에스컬레이션 차단, 같은 레벨 허용) · `name` 중복 시 409 DUPLICATE_RESOURCE
+            - 부수효과: 위계검증 — `priority`가 요청자 maxPriority **이상**이면 403(요청자보다 엄격히 낮아야 함 — 같은 레벨 불가) · `name` 중복 시 409 DUPLICATE_RESOURCE
             """)
     @PostMapping
     public ResponseEntity<RoleResponse> create(
@@ -69,7 +69,7 @@ public class RoleController {
             - 경로 변수: `id` — 수정할 역할 ID
             - 요청 본문: `RoleUpdateRequest` — `name`(선택, ≤50)·`priority`(선택)·`description`(선택, ≤255)
             - 반환값: `RoleResponse` — 수정된 역할
-            - 부수효과: 위계검증 — 대상 역할 `priority`가 요청자 maxPriority 초과 시 403 · `is_system` 역할은 수정 불가(403) · `priority` 변경 시 새 값도 maxPriority 이하여야 함 · `name` 중복 시 409 DUPLICATE_RESOURCE
+            - 부수효과: 위계검증 — 대상 역할 `priority`가 요청자 maxPriority 초과 시 403 · `is_system` 역할은 수정 불가(403) · `priority`를 다른 값으로 바꿀 때 새 값은 maxPriority보다 엄격히 낮아야 함(같은 레벨 불가, 같은 값 재전송은 변경이 아님) · `name` 중복 시 409 DUPLICATE_RESOURCE
             """)
     @PatchMapping("/{id}")
     public RoleResponse update(
