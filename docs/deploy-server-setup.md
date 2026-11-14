@@ -33,7 +33,7 @@ sudo chown $USER:$USER /srv/church-backend
 
 - `CHURCH_NAME`·`CHURCH_SLUG`·`CORS_ALLOWED_ORIGIN`은 빠지면 compose가 실행을 거부한다. 첫 기동 때 값이 **영구 기록**되므로
   오타 없이 넣는다. 그 뒤에는 런타임에서 쓰이지 않지만 **지우지 않는다**(값을 바꾸는 것은 무해하다).
-- 선택: `TENANT_DEFAULT_SLUG` — 접두사(`/c/<slug>`) 없는 `/api/**` 요청을 처리할 교회. 첫 교회 프론트가 아직 접두사 없는
+- 선택: `TENANT_DEFAULT_SLUG` — 접두사(`/church/<slug>`) 없는 `/api/**` 요청을 처리할 교회. 첫 교회 프론트가 아직 접두사 없는
   주소를 쓰는 전환 기간에만 넣고, 끝나면 지운다. 비우면 그런 요청은 404이고, `churches`에 없는 slug를 넣으면 기동이 실패한다.
 - 두 번째 교회부터는 `.env`를 건드리지 않는다 — 교회별 값은 `churches` 테이블에 있다(`docs/setup-new-church.md`).
 - 최초 관리자를 만드는 환경변수는 없다. 서버를 새로 만든 경우 첫 교회(V18이 만든 행)에는 관리자가 없으므로,
@@ -113,7 +113,7 @@ curl -f http://localhost:8080/actuator/health       # {"status":"UP"}
 전제: 80/443이 방화벽(§4)에서 열려 있을 것. 8080은 `127.0.0.1`에만 묶여 있어 외부에서 닿지 않는다(§4) —
 원(raw) 백엔드를 직접 노출하지 않는다.
 
-API 도메인은 **전 교회 공용 하나**다(현재 `api.eunsaem.com`). 교회는 도메인이 아니라 경로 접두사 `/c/<slug>`로
+API 도메인은 **전 교회 공용 하나**다(현재 `api.eunsaem.com`). 교회는 도메인이 아니라 경로 접두사 `/church/<slug>`로
 구분하므로, 교회를 추가해도 DNS·Caddy를 건드리지 않는다. 아래 `api.<교회도메인>`은 이 공용 API 도메인을 뜻한다.
 
 ### 7-1. DNS
@@ -175,4 +175,4 @@ Actions의 Deploy를 `image_tag`에 현재 버전을 넣어 실행한다.
 `FILE_BASE_URL`은 바인딩만 되고 읽는 코드가 없는 죽은 설정이라 맞출 필요가 없다.
 
 확인: `curl -s https://api.<교회도메인>/actuator/health` → `{"status":"UP"}`, 브라우저에서 자물쇠(유효 인증서).
-교회별 API는 `https://api.<교회도메인>/c/<slug>/api/main`으로 확인한다.
+교회별 API는 `https://api.<교회도메인>/church/<slug>/api/main`으로 확인한다.

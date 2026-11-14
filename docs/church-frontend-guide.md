@@ -16,8 +16,8 @@
 
 ### 0.2 baseURL · 인증 헤더
 
-- **baseURL에는 교회 접두사가 들어간다**: `NEXT_PUBLIC_API_BASE=https://<공용API>/c/<slug>` (예: `https://api.eunsaem.com/c/<slug>`). API 서버 하나를 모든 교회가 공유하고(멀티테넌시), 서버는 경로 접두사 `/c/<slug>`로 어느 교회 요청인지 정한다. 값은 교회 등록 스크립트가 출력해 준다(`docs/setup-new-church.md`).
-- 모든 API는 그 baseURL 아래 `/api/**` 프리픽스다 — 실제 호출은 `https://<공용API>/c/<slug>/api/...`. 이 문서와 OpenAPI의 경로(`/api/...`)는 접두사를 생략한 것이므로, **모든 요청(fetch·서버 사이드 호출·`<img src>`·PDF 링크)을 반드시 `NEXT_PUBLIC_API_BASE`를 거쳐 조립**한다. 접두사가 빠지거나 slug가 틀리면 `404 RESOURCE_NOT_FOUND`다.
+- **baseURL에는 교회 접두사가 들어간다**: `NEXT_PUBLIC_API_BASE=https://<공용API>/church/<slug>` (예: `https://api.eunsaem.com/church/<slug>`). API 서버 하나를 모든 교회가 공유하고(멀티테넌시), 서버는 경로 접두사 `/church/<slug>`로 어느 교회 요청인지 정한다. 값은 교회 등록 스크립트가 출력해 준다(`docs/setup-new-church.md`).
+- 모든 API는 그 baseURL 아래 `/api/**` 프리픽스다 — 실제 호출은 `https://<공용API>/church/<slug>/api/...`. 이 문서와 OpenAPI의 경로(`/api/...`)는 접두사를 생략한 것이므로, **모든 요청(fetch·서버 사이드 호출·`<img src>`·PDF 링크)을 반드시 `NEXT_PUBLIC_API_BASE`를 거쳐 조립**한다. slug가 틀리면 `404 RESOURCE_NOT_FOUND`다. 접두사가 빠진 요청도 404지만, 서버에 `TENANT_DEFAULT_SLUG`가 설정된 동안(로컬 개발·전환 기간)에는 그 기본 교회로 처리된다 — 그래서 접두사 누락은 404로 드러나지 않을 수 있으니 `NEXT_PUBLIC_API_BASE` 값을 직접 확인한다.
 - Swagger UI(`/docs/swagger-ui.html`)와 스펙(`/v3/api-docs`)은 접두사 없이 공용 도메인 바로 아래에 있다(둘 다 공개).
 - 보호 요청은 모두 `Authorization: Bearer <accessToken>` 헤더 필요. 서버는 **STATELESS**(쿠키·세션 없음) — 토큰은 클라이언트가 보관·재전송한다.
 - **토큰은 교회별이다.** access 토큰에는 발급한 교회의 id(`cid`)가 들어 있어, 다른 교회 접두사로 보내면 `401 INVALID_TOKEN`이다. refresh도 발급받은 교회 접두사에서만 된다. 계정도 교회별이라 같은 전화번호로 교회마다 따로 가입한다.
@@ -29,7 +29,7 @@
 
 | 키 | 용도 | 프론트 사용처 |
 |---|---|---|
-| `NEXT_PUBLIC_API_BASE` (프론트 env) | 교회 접두사를 포함한 API 베이스 `https://<공용API>/c/<slug>` | 모든 API 호출과 미디어 URL의 앞부분. `media:{id}` → `${NEXT_PUBLIC_API_BASE}/api/media/{id}`(5장). `next/image` 허용 패턴도 접두사를 포함한 경로(`/c/<slug>/api/media/**`)여야 한다 |
+| `NEXT_PUBLIC_API_BASE` (프론트 env) | 교회 접두사를 포함한 API 베이스 `https://<공용API>/church/<slug>` | 모든 API 호출과 미디어 URL의 앞부분. `media:{id}` → `${NEXT_PUBLIC_API_BASE}/api/media/{id}`(5장). `next/image` 허용 패턴도 접두사를 포함한 경로(`/church/<slug>/api/media/**`)여야 한다 |
 | `FILE_BASE_URL` (서버 env) | — | 서버에 바인딩만 되고 쓰이지 않는 설정이다. 프론트는 의존하지 않는다 |
 | `JWT_ACCESS_EXPIRY` / `JWT_REFRESH_EXPIRY` | 토큰 수명(1h / 14d) | **프론트가 하드코딩 금지** — 만료는 401 응답으로 감지하고 refresh로 대응(1장) |
 
@@ -311,7 +311,7 @@ import DOMPurify from "dompurify";
 const MEDIA_REF = /media:(\d+)(?!\d)/g;
 
 function renderMarkdown(raw: string): string {
-  // 1) media:{id} → 공개 서빙 URL (API_BASE = NEXT_PUBLIC_API_BASE, 교회 접두사 /c/<slug> 포함)
+  // 1) media:{id} → 공개 서빙 URL (API_BASE = NEXT_PUBLIC_API_BASE, 교회 접두사 /church/<slug> 포함)
   const withUrls = raw.replace(MEDIA_REF, (_, id) => `${API_BASE}/api/media/${id}`);
   // 2) 마크다운 → HTML
   const html = marked.parse(withUrls, { async: false }) as string;

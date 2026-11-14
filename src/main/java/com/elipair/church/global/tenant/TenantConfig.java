@@ -12,7 +12,7 @@ public class TenantConfig {
 
     /**
      * Spring Security 필터 체인(기본 순서 -100)보다 앞에 둔다. 뒤에 두면 보안 매처가 접두사가 붙은 경로를 보고
-     * {@code /c/x/api/admin/**}을 공개 경로로 통과시킨다. (@Component로 등록하지 않는다 — 부트가 맨 뒤 순서로 한 번 더 등록한다.)
+     * {@code /church/x/api/admin/**}을 공개 경로로 통과시킨다. (@Component로 등록하지 않는다 — 부트가 맨 뒤 순서로 한 번 더 등록한다.)
      */
     static final int ORDER = -101;
 

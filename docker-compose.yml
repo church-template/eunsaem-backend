@@ -47,7 +47,7 @@ services:
       CHURCH_NAME: ${CHURCH_NAME:?CHURCH_NAME is required}
       CHURCH_SLUG: ${CHURCH_SLUG:?CHURCH_SLUG is required}
       CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:?CORS_ALLOWED_ORIGIN is required}
-      # 접두사(/c/{slug}) 없는 /api/** 요청을 처리할 교회. 로컬·전환 기간 전용, 비우면 404.
+      # 접두사(/church/{slug}) 없는 /api/** 요청을 처리할 교회. 로컬·전환 기간 전용, 비우면 404.
       TENANT_DEFAULT_SLUG: ${TENANT_DEFAULT_SLUG:-}
       FILE_UPLOAD_DIR: ${FILE_UPLOAD_DIR:-/app/uploads}
       FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:8080/api/media}

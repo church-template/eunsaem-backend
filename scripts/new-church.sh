@@ -79,8 +79,8 @@ cat <<DONE
 등록했습니다.
 
 1) 이 교회 프론트의 환경변수에 넣고 빌드·배포합니다:
-     NEXT_PUBLIC_API_BASE=$API_BASE/c/$NC_SLUG
+     NEXT_PUBLIC_API_BASE=$API_BASE/church/$NC_SLUG
 2) 확인(200과 빈 목록이 나오면 정상):
-     curl -s $API_BASE/c/$NC_SLUG/api/main
+     curl -s $API_BASE/church/$NC_SLUG/api/main
 3) 교회 대표자에게 전화번호와 임시 비밀번호를 전달합니다. 첫 로그인 후 비밀번호를 바꾸도록 안내하세요.
 DONE

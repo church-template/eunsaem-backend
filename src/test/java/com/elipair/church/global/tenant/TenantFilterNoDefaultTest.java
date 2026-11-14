@@ -28,7 +28,7 @@ class TenantFilterNoDefaultTest {
 
     @Test
     void 기본교회_설정이_없어도_접두사_경로와_헬스는_동작() throws Exception {
-        mvc.perform(get("/c/dev/api/notices")).andExpect(status().isOk());
+        mvc.perform(get("/church/dev/api/notices")).andExpect(status().isOk());
         mvc.perform(get("/actuator/health")).andExpect(status().isOk());
     }
 }

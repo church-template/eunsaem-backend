@@ -69,11 +69,11 @@ public class TwoChurches {
     }
 
     public String aPrefix() {
-        return "/c/" + A_SLUG;
+        return "/church/" + A_SLUG;
     }
 
     public String bPrefix() {
-        return "/c/" + B_SLUG;
+        return "/church/" + B_SLUG;
     }
 
     public <T> T inA(Supplier<T> work) {

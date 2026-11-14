@@ -42,7 +42,7 @@ Roles and positions are **per church** (`(church_id, name)` unique): each church
 
 ## Path authorization — SecurityConfig 매처 체인이 정본
 
-아래 표는 교회 접두사 `/c/{slug}`를 **뗀 뒤의** 경로다. `TenantFilter`가 보안 필터 체인보다 앞에서 접두사를 떼므로 매처는 접두사를 모르고, `/c/{slug}/api/admin/**`도 2번 규칙으로 보호된다. 접두사 뒤가 `/api/`가 아니면(`/c/x/actuator/…`) 404.
+아래 표는 교회 접두사 `/church/{slug}`를 **뗀 뒤의** 경로다. `TenantFilter`가 보안 필터 체인보다 앞에서 접두사를 떼므로 매처는 접두사를 모르고, `/church/{slug}/api/admin/**`도 2번 규칙으로 보호된다. 접두사 뒤가 `/api/`가 아니면(`/church/x/actuator/…`) 404.
 
 매처는 **선언 순서대로 선순위 매칭**된다 (`global/config/SecurityConfig.securityFilterChain`):
 

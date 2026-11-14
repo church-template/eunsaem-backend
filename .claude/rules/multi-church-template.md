@@ -4,8 +4,8 @@
 
 ## 요청의 교회
 
-- 교회는 API 경로 접두사 `/c/{slug}`로 정한다(`churches.slug`). `TenantFilter`(`global/tenant`, 보안 필터 체인보다 앞)가 교회를 찾아 `TenantContext`에 넣고 접두사를 뗀다 → `SecurityConfig` 매처·컨트롤러 매핑은 `/api/**` 그대로 쓴다. 컨트롤러에 `/c/...` 경로를 만들지 않는다.
-- 없는 slug·형식이 틀린 slug·`/c/x/<api 아님>` → `404 RESOURCE_NOT_FOUND`. `/actuator/health`·Swagger·`/error`는 교회 없이 통과.
+- 교회는 API 경로 접두사 `/church/{slug}`로 정한다(`churches.slug`). `TenantFilter`(`global/tenant`, 보안 필터 체인보다 앞)가 교회를 찾아 `TenantContext`에 넣고 접두사를 뗀다 → `SecurityConfig` 매처·컨트롤러 매핑은 `/api/**` 그대로 쓴다. 컨트롤러에 `/church/...` 경로를 만들지 않는다.
+- 없는 slug·형식이 틀린 slug·`/church/x/<api 아님>` → `404 RESOURCE_NOT_FOUND`. `/actuator/health`·Swagger·`/error`는 교회 없이 통과.
 - `TENANT_DEFAULT_SLUG`(`tenant.default-slug`)가 있으면 접두사 없는 `/api/**`를 그 교회로 처리한다(로컬·테스트·전환 기간 전용, 요청마다 INFO 로그). 비어 있으면 404, `churches`에 없는 slug면 기동 실패.
 
 ## 데이터 규칙

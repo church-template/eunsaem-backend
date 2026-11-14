@@ -20,13 +20,13 @@ import tools.jackson.databind.ObjectMapper;
  * 요청의 교회를 정한다(#86). 보안 필터 체인보다 <b>앞</b>에서 돈다.
  *
  * <ul>
- *   <li>{@code /c/{slug}/api/...} — slug로 교회를 찾고, 접두사를 뗀 {@code /api/...}로 감싸 넘긴다.
+ *   <li>{@code /church/{slug}/api/...} — slug로 교회를 찾고, 접두사를 뗀 {@code /api/...}로 감싸 넘긴다.
  *       그래서 SecurityConfig 매처와 컨트롤러 매핑은 접두사를 모른다.
  *   <li>접두사 없는 {@code /api/...} — tenant.default-slug의 교회로 처리한다. 값이 없으면 404.
  *   <li>그 외({@code /actuator/health}, Swagger, {@code /error}) — 교회 없이 통과.
  * </ul>
  *
- * 교회를 못 찾거나 {@code /c/}로 시작하는데 형식이 다르면 404(RFC 7807).
+ * 교회를 못 찾거나 {@code /church/}로 시작하는데 형식이 다르면 404(RFC 7807).
  */
 @Slf4j
 public class TenantFilter extends OncePerRequestFilter {
@@ -35,7 +35,7 @@ public class TenantFilter extends OncePerRequestFilter {
     public static final String CHURCH_ATTRIBUTE = "church.info";
 
     private static final String MDC_KEY = "churchId";
-    private static final Pattern PREFIXED = Pattern.compile("^(/c/([^/]+))(/api/.*)$");
+    private static final Pattern PREFIXED = Pattern.compile("^(/church/([^/]+))(/api/.*)$");
 
     private final ChurchResolver resolver;
     private final TenantProperties properties;
@@ -59,7 +59,7 @@ public class TenantFilter extends OncePerRequestFilter {
                 return;
             }
             proceed(new PrefixStrippedRequest(request, prefixed.group(1)), response, chain, church.get());
-        } else if (path.equals("/c") || path.startsWith("/c/")) {
+        } else if (path.equals("/church") || path.startsWith("/church/")) {
             notFound(request, response);
         } else if (path.equals("/api") || path.startsWith("/api/")) {
             Optional<ChurchInfo> church =
@@ -97,7 +97,7 @@ public class TenantFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 접두사({@code /c/{slug}})를 뗀 경로를 돌려주는 래퍼. 보안 매처와 MVC가 같은 경로를 보도록
+     * 접두사({@code /church/{slug}})를 뗀 경로를 돌려주는 래퍼. 보안 매처와 MVC가 같은 경로를 보도록
      * requestURI·servletPath·requestURL을 모두 맞춘다(하나라도 다르면 인가를 우회한다).
      */
     private static final class PrefixStrippedRequest extends HttpServletRequestWrapper {

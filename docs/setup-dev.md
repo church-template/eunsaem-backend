@@ -17,13 +17,13 @@ clone 직후 로컬에서 앱을 띄우고 테스트까지 도달하는 정본 �
   | 키 | 로컬 값 | 뜻 |
   |---|---|---|
   | `CHURCH_NAME` | `개발교회` | 첫 교회 이름. V18이 `churches` 첫 행을 만들 때 한 번 읽는다 |
-  | `CHURCH_SLUG` | `dev` | 첫 교회 slug = API 경로 접두사 `/c/dev` |
+  | `CHURCH_SLUG` | `dev` | 첫 교회 slug = API 경로 접두사 `/church/dev` |
   | `CORS_ALLOWED_ORIGIN` | `http://localhost:3000` | 첫 교회의 프론트 origin. **DB를 처음 만들 때 한 번만** 기록된다 — 나중에 바꾸려면 `churches.frontend_origin`을 고치거나 볼륨을 지우고 다시 띄운다 |
   | `TENANT_DEFAULT_SLUG` | `dev` | 접두사 없는 `/api/**` 요청을 처리할 교회(아래 "교회 접두사") |
 
 - host bootRun 경로(§3)는 `.env`가 필요 없다 — `dev` 프로필이 위 네 값의 기본값(`개발교회`/`dev`/`http://localhost:3000`/`dev`)을 갖고 있다.
-- **교회 접두사**: 운영 API 경로는 `/c/<slug>/api/...`다(멀티테넌시, #86). 로컬에서는 `tenant.default-slug=dev` 덕에
-  접두사 없는 `localhost:8080/api/...`가 `dev` 교회로 처리되고, `localhost:8080/c/dev/api/...`도 똑같이 동작한다.
+- **교회 접두사**: 운영 API 경로는 `/church/<slug>/api/...`다(멀티테넌시, #86). 로컬에서는 `tenant.default-slug=dev` 덕에
+  접두사 없는 `localhost:8080/api/...`가 `dev` 교회로 처리되고, `localhost:8080/church/dev/api/...`도 똑같이 동작한다.
   컨테이너 경로에서 `.env`의 `TENANT_DEFAULT_SLUG`를 비우면 접두사 없는 요청은 404다.
 
 ## 1. dev 오버라이드 생성 (1회)
@@ -91,7 +91,7 @@ curl -s -X POST localhost:8080/api/auth/login \
 # → {"tokens":{"accessToken":"...","refreshToken":"..."},"member":{...},"requiresAgreement":false}
 
 # 교회 접두사 경로(운영과 같은 형태)도 같은 결과
-curl -s localhost:8080/c/dev/api/main
+curl -s localhost:8080/church/dev/api/main
 ```
 
 테스트·빌드:
@@ -123,7 +123,7 @@ curl -s localhost:8080/c/dev/api/main
 - **host bootRun에서 redis 미연결이면 인증 필요 조회가 500** — JWT 필터가 블랙리스트를 Redis에서
   확인한다. redis 컨테이너 기동 + §1의 6379 노출 + `REDIS_PASSWORD` 지정까지 세 가지 다 필요.
 - **접두사 없는 `/api/**`가 전부 404** — `TENANT_DEFAULT_SLUG`가 비어 있다. `.env`에 `TENANT_DEFAULT_SLUG=dev`를 넣거나
-  `/c/dev/api/...`로 호출한다. 반대로 `churches`에 없는 slug를 넣으면 앱이 기동하지 않는다.
+  `/church/dev/api/...`로 호출한다. 반대로 `churches`에 없는 slug를 넣으면 앱이 기동하지 않는다.
 - **교회 없이 DB를 만지면 예외**("테넌트가 지정되지 않았습니다") — 스케줄러 등 요청 밖 코드는
   `TenantContext.runAs(churchId, …)`를 트랜잭션 바깥에서 감싸야 한다(`.claude/rules/multi-church-template.md`).
 - **회원전용 경로**: 갤러리·설교·통독 챌린지는 `MEMBER` 승인 계정으로만 200. `USER`(01090000007)는 403이 정상.
