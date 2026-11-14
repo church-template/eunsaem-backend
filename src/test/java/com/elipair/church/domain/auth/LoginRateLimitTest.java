@@ -143,6 +143,16 @@ class LoginRateLimitTest {
     }
 
     @Test
+    void 비정상적으로_긴_전화번호는_400이고_Redis에_키를_남기지_않는다() throws Exception {
+        // 전화번호는 실패 횟수 키에 들어간다. 길이 제한이 없으면 거대한 숫자열로 Redis 메모리를 채울 수 있다.
+        String huge = "0".repeat(5_000);
+        login("", huge, "whatever-pw", "9.9.9.9")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT_VALUE"));
+        org.assertj.core.api.Assertions.assertThat(redis.keys("auth:login:*")).isEmpty();
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void Redis가_죽어도_로그인_흐름을_막지_않는다() {
         // 가용성 우선(fail-open) — InquiryRateLimiter와 같은 정책.
