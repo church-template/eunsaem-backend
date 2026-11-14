@@ -1,7 +1,36 @@
 # Changelog
 
-**현재 버전:** 0.0.52  
-**마지막 업데이트:** 2026-11-10T03:06:45Z  
+**현재 버전:** 0.0.54  
+**마지막 업데이트:** 2026-11-14T14:28:58Z  
+
+---
+
+## [0.0.54] - 2026-11-14
+
+**PR:** #89  
+
+**기타**
+- Merge pull request #88 from church-template/20261114_#86_교회_경로_접두사를_church로_변경
+- docs : 미디어 URL 조립과 접두사 누락 시 동작 설명 정정 https://github.com/church-template/church-backend/issues/86
+- refactor : 교회 경로 접두사를 /c/에서 /church/로 변경 https://github.com/church-template/church-backend/issues/86
+- Merge pull request #87 from church-template/20261113_#86_기능개선_아키텍처_교회별_서버_분리_구조를_멀티테넌시로_전환
+- fix : 역할 priority를 요청자와 같은 등급으로 정할 수 없게 제한 https://github.com/church-template/eunsaem-backend/issues/86
+- docs : 운영 절차서의 수동 재생성 명령과 백업 기대값 정정 https://github.com/church-template/eunsaem-backend/issues/86
+- fix : 백업 정리를 전송보다 먼저 하고 교회 등록 입력 검증 보강 https://github.com/church-template/eunsaem-backend/issues/86
+- docs : 운영 전환 절차서 보강(백업 cron, 수동 백업 위치, 되돌릴 버전 기록) https://github.com/church-template/eunsaem-backend/issues/86
+- test : 기존 데이터가 있는 상태의 church_id 마이그레이션 검증 https://github.com/church-template/eunsaem-backend/issues/86
+- fix : 로그인 요청의 전화번호·비밀번호 길이 제한 https://github.com/church-template/eunsaem-backend/issues/86
+- docs : 멀티테넌시 전환에 맞춰 스펙과 규칙 문서 갱신 https://github.com/church-template/eunsaem-backend/issues/86
+- chore : 운영 전환 절차서와 백업 스크립트 추가 https://github.com/church-template/eunsaem-backend/issues/86
+- feat : 새 교회 등록 스크립트 추가 https://github.com/church-template/eunsaem-backend/issues/86
+- test : 교회 간 격리 테스트 추가 https://github.com/church-template/eunsaem-backend/issues/86
+- fix : 관리자 작업 위계 검사와 로그인 시도 제한 추가 https://github.com/church-template/eunsaem-backend/issues/86
+- feat : 업로드 경로에 교회 접두사 추가 https://github.com/church-template/eunsaem-backend/issues/86
+- feat : 캐시와 조회수 버퍼를 교회별로 분리 https://github.com/church-template/eunsaem-backend/issues/86
+- feat : 토큰에 교회 식별자 추가와 교회별 CORS https://github.com/church-template/eunsaem-backend/issues/86
+- feat : 네이티브 쿼리에 교회 조건 추가 https://github.com/church-template/eunsaem-backend/issues/86
+- feat : 전 테이블 church_id 추가와 테넌트 필터 적용 https://github.com/church-template/eunsaem-backend/issues/86
+- feat : 테넌트 식별 기반과 churches 테이블 추가 https://github.com/church-template/eunsaem-backend/issues/86
 
 ---
 
