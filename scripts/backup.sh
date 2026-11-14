@@ -5,8 +5,8 @@
 #   1) pg_dump -Fc(커스텀 형식)로 DB 전체를 덤프하고, 덤프가 실제로 열리는지 확인한다.
 #   2) 업로드 볼륨(/app/uploads)을 tar로 묶고, tar가 읽히는지 확인한다.
 #   3) 두 파일을 gpg 대칭 암호화한다(전 교회 회원의 전화번호·비밀번호 해시가 들어 있다).
-#   4) BACKUP_UPLOAD_CMD가 있으면 서버 밖으로 보낸다. 같은 서버에만 둔 백업은 서버와 함께 사라진다.
-#   5) 로컬 사본은 KEEP_DAYS일치만 남기고, 디스크 사용량이 DISK_WARN_PERCENT 이상이면 경고한다.
+#   4) 로컬 사본은 KEEP_DAYS일치만 남기고, 디스크 사용량이 DISK_WARN_PERCENT 이상이면 경고한다.
+#   5) BACKUP_UPLOAD_CMD가 있으면 서버 밖으로 보낸다. 같은 서버에만 둔 백업은 서버와 함께 사라진다.
 #
 # 서비스를 멈추지 않는다(pg_dump는 실행 중에도 일관된 스냅샷을 뜬다). 전환 당일처럼 "덤프 이후 쓰기가
 # 없어야" 할 때는 운영 절차서대로 backend를 먼저 멈춘 뒤 실행한다 — 멈춘 컨테이너에서도 동작한다.
@@ -91,7 +91,17 @@ ls -lh "${OUTPUTS[@]}"
 
 WARN=0
 
-# 4) 서버 밖으로 전송
+# 4) 오래된 로컬 사본 정리 + 디스크 사용량
+# 서버 밖 전송보다 먼저 한다 — 전송이 계속 실패해도(자격증명 만료 등) 로컬 사본이 쌓여 디스크를 채우지 않게.
+find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*' -o -name 'uploads-*' \) -mtime "+$KEEP_DAYS" -delete
+USED="$(df --output=pcent / 2>/dev/null | tail -n 1 | tr -dc '0-9' || true)"
+[ -n "$USED" ] || USED="$(df -P / | tail -n 1 | awk '{print $5}' | tr -dc '0-9')"
+if [ "$USED" -ge "$DISK_WARN_PERCENT" ]; then
+    echo "경고: 디스크 사용량 ${USED}% (기준 ${DISK_WARN_PERCENT}%). 업로드 파일이 차고 있다면 객체 저장소 이전을 검토하세요." >&2
+    WARN=2
+fi
+
+# 5) 서버 밖으로 전송 (실패하면 종료 코드 1 — 암호화된 로컬 사본은 남는다)
 if [ -n "${BACKUP_UPLOAD_CMD:-}" ]; then
     for file in "${OUTPUTS[@]}"; do
         bash -c "$BACKUP_UPLOAD_CMD \"\$1\"" _ "$file" || fail "서버 밖 전송: $file"
@@ -99,15 +109,6 @@ if [ -n "${BACKUP_UPLOAD_CMD:-}" ]; then
     echo "서버 밖으로 보냈습니다."
 else
     echo "경고: BACKUP_UPLOAD_CMD가 없어 서버 안에만 있습니다. 파일을 서버 밖으로 옮기세요: $BACKUP_DIR" >&2
-    WARN=2
-fi
-
-# 5) 오래된 로컬 사본 정리 + 디스크 사용량
-find "$BACKUP_DIR" -maxdepth 1 -type f \( -name 'db-*' -o -name 'uploads-*' \) -mtime "+$KEEP_DAYS" -delete
-USED="$(df --output=pcent / 2>/dev/null | tail -n 1 | tr -dc '0-9' || true)"
-[ -n "$USED" ] || USED="$(df -P / | tail -n 1 | awk '{print $5}' | tr -dc '0-9')"
-if [ "$USED" -ge "$DISK_WARN_PERCENT" ]; then
-    echo "경고: 디스크 사용량 ${USED}% (기준 ${DISK_WARN_PERCENT}%). 업로드 파일이 차고 있다면 객체 저장소 이전을 검토하세요." >&2
     WARN=2
 fi
 

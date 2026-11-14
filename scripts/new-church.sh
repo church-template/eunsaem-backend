@@ -30,14 +30,16 @@ read -r -p "교회 키(slug, 소문자·숫자·하이픈): " NC_SLUG
 read -r -p "프론트 주소(https://…): " NC_ORIGIN
 read -r -p "교회 대표자 전화번호: " NC_PHONE
 read -r -p "교회 대표자 이름: " NC_OWNER_NAME
-read -r -s -p "임시 비밀번호(8자 이상, 화면에 보이지 않음): " NC_PW; echo
-read -r -s -p "임시 비밀번호 확인: " NC_PW_CONFIRM; echo
+# IFS= : 비밀번호 앞뒤 공백을 잘라내지 않는다(입력한 그대로가 비밀번호다).
+IFS= read -r -s -p "임시 비밀번호(8자 이상, 화면에 보이지 않음): " NC_PW; echo
+IFS= read -r -s -p "임시 비밀번호 확인: " NC_PW_CONFIRM; echo
 
 fail() { echo "오류: $1" >&2; exit 1; }
 [ -n "$NC_NAME" ] || fail "교회 이름이 비었습니다"
 [[ "$NC_SLUG" =~ ^[a-z0-9-]{1,40}$ ]] || fail "교회 키는 소문자·숫자·하이픈 1~40자여야 합니다"
 [[ "$NC_ORIGIN" =~ ^https://[^/[:space:]]+$ ]] || fail "프론트 주소는 https://로 시작하고 경로·끝 슬래시가 없어야 합니다 (예: https://www.example.com)"
-[[ "$NC_PHONE" =~ [0-9] ]] || fail "전화번호에 숫자가 없습니다"
+# 전화번호는 숫자만 남겨 저장한다. +82 10-… 처럼 넣으면 8210…으로 저장돼 010…으로 로그인할 수 없다.
+[[ "${NC_PHONE//[^0-9]/}" =~ ^0[0-9]{8,10}$ ]] || fail "전화번호는 0으로 시작하는 국내 번호로 넣습니다 (예: 010-1234-5678)"
 [ -n "$NC_OWNER_NAME" ] || fail "대표자 이름이 비었습니다"
 [ "${#NC_PW}" -ge 8 ] || fail "임시 비밀번호는 8자 이상이어야 합니다"
 [ "$NC_PW" = "$NC_PW_CONFIRM" ] || fail "임시 비밀번호가 서로 다릅니다"
