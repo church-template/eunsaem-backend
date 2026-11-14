@@ -57,6 +57,13 @@ services:
       VIEW_FLUSH_INTERVAL: ${VIEW_FLUSH_INTERVAL:-60000}
     ports:
       - "8080:8080"
+    # 컨테이너 로그 용량 제한. backend에만 건다 — postgres·redis의 설정을 바꾸면 `up -d`가 두 컨테이너를
+    # 재생성한다(DB·Redis 재시작). 두 서비스에 넣을 때는 별도 배포로 한다(#86 설계 §6.2).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - uploads-data:${FILE_UPLOAD_DIR:-/app/uploads}
     healthcheck:
