@@ -171,6 +171,7 @@ async function authFetch(url: string, init: RequestInit = {}): Promise<Response>
 | 가드 | 규칙 | 위반 시 |
 |---|---|---|
 | 위계(escalation) | 대상 역할 priority가 **내 `maxPriority` 초과**면 차단(같은 레벨은 허용) | 403 |
+| 역할 priority 입력 | 역할을 만들거나 priority를 바꿀 때 새 값은 **내 `maxPriority`보다 작아야** 한다(같은 값 불가). 입력 상한 = `maxPriority - 1` | 403 |
 | 시스템 역할 | `isSystem=true`(`SUPER_ADMIN`/`ADMIN`/`USER`) 수정·삭제 불가 | 403 |
 | 자기 보호 | **자기 자신**의 역할 부여/회수 불가 | 403 |
 | 마지막 SUPER_ADMIN | 그 교회의 활성 SUPER_ADMIN이 1명이면 그 역할 회수·강등·삭제 불가 | 403 |

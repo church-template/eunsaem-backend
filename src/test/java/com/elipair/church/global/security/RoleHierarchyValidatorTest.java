@@ -85,4 +85,14 @@ class RoleHierarchyValidatorTest {
         assertThatCode(() -> validator.validateNotLastSuperAdmin(true, 2)).doesNotThrowAnyException();
         assertThatCode(() -> validator.validateNotLastSuperAdmin(false, 1)).doesNotThrowAnyException();
     }
+
+    @Test
+    void new_priority_must_be_strictly_below_requester() {
+        org.assertj.core.api.Assertions.assertThatCode(() -> validator.validateNewPriority(900, 899))
+                .doesNotThrowAnyException();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> validator.validateNewPriority(900, 900))
+                .isInstanceOf(com.elipair.church.global.exception.BusinessException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> validator.validateNewPriority(900, 1000))
+                .isInstanceOf(com.elipair.church.global.exception.BusinessException.class);
+    }
 }

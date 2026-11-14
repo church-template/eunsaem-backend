@@ -11,10 +11,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class RoleHierarchyValidator {
 
-    /** 대상 역할 priority가 요청자 maxPriority 이하여야 한다(같은 레벨 허용, 초과만 escalation 차단). 역할 정의 관리·생성용. */
+    /** 대상 priority가 요청자 maxPriority 이하여야 한다(같은 레벨 허용, 초과만 escalation 차단). 기존 역할·회원을 관리할 때 쓴다. */
     public void validateAssignable(int requesterMaxPriority, int targetPriority) {
         if (targetPriority > requesterMaxPriority) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "대상 역할의 priority가 요청자 권한을 초과합니다");
+        }
+    }
+
+    /**
+     * 역할의 priority를 <b>정할 때</b>(생성, 또는 다른 값으로 변경): 새 priority가 요청자 maxPriority보다 엄격히 낮아야 한다.
+     * 같아도 되면 위임 규칙({@link #validateGrantable})이 우회된다 — 낮은 역할을 회원에게 준 뒤 그 역할을 자기 등급까지 올리면
+     * 동급 관리자를 만들 수 있다. 요청자가 만들거나 올린 역할은 항상 요청자보다 아래라, 동급·상위 관리자가 회수할 수 있다.
+     */
+    public void validateNewPriority(int requesterMaxPriority, int newPriority) {
+        if (newPriority >= requesterMaxPriority) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, "역할의 priority는 요청자보다 낮게만 정할 수 있습니다");
         }
     }
 

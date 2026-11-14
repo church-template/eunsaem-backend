@@ -26,7 +26,7 @@
   트랜잭션 **바깥**에서. `churches`는 JPA 엔티티 금지(`JdbcClient`). → `multi-church-template.md`
 - **RBAC**: 직분(position)과 권한은 독립 축. 인가는 항상 권한 단위
   `@PreAuthorize("hasAuthority('SERMON_WRITE')")` — role·직분으로 검사 금지. 역할 priority 계층 가드
-  (부여는 strictly-below, 역할 수정은 at-or-below, 관리자가 다른 회원을 수정·직분 지정·비밀번호 초기화할 때는
+  (부여는 strictly-below, 역할 수정은 at-or-below, 역할의 priority를 정할 때(생성·변경)는 strictly-below, 관리자가 다른 회원을 수정·직분 지정·비밀번호 초기화할 때는
   대상 최고 priority ≤ 요청자 maxPriority). 역할·직분과 "마지막 SUPER_ADMIN" 집계는 교회 단위. → `rbac-authorization.md`
 - **경로 인가**: `/api/admin/**` 인증+메서드 권한 · `/api/gallery/**`·`/api/bible-challenges/**`·`/api/sermons/**`·`/api/vehicle-runs/**`
   회원전용(각 `GALLERY_VIEW`/`CHALLENGE_PARTICIPATE`/`SERMON_VIEW`/`VEHICLE_APPLY`) · 나머지 public(`/api/main` 포함, 의도적).
