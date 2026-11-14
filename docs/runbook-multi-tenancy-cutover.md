@@ -44,15 +44,16 @@
 cd /srv/church-backend
 DBU=$(grep '^DB_USERNAME=' .env | cut -d= -f2-); DBU=${DBU:-church_user}
 DBN=$(grep '^DB_NAME=' .env | cut -d= -f2-); DBN=${DBN:-church_db}
-TS=$(date +%Y%m%d-%H%M); mkdir -p ~/backup && chmod 700 ~/backup
-docker compose exec -T postgres pg_dump -U "$DBU" -d "$DBN" -Fc > ~/backup/db-$TS.dump
-docker cp church-backend-backend-1:/app/uploads - > ~/backup/uploads-$TS.tar
-docker compose exec -T postgres pg_restore --list < ~/backup/db-$TS.dump | grep -c 'TABLE DATA'
-tar tf ~/backup/uploads-$TS.tar | grep -vc '/$'
+TS=$(date +%Y%m%d-%H%M); mkdir -p ~/backup-cutover && chmod 700 ~/backup-cutover
+docker compose exec -T postgres pg_dump -U "$DBU" -d "$DBN" -Fc > ~/backup-cutover/db-$TS.dump
+docker cp church-backend-backend-1:/app/uploads - > ~/backup-cutover/uploads-$TS.tar
+docker compose exec -T postgres pg_restore --list < ~/backup-cutover/db-$TS.dump | grep -c 'TABLE DATA'
+tar tf ~/backup-cutover/uploads-$TS.tar | grep -vc '/$'
 ```
 
 - 기대: 첫 숫자 = 테이블 수 + 1(`flyway_schema_history`), 둘째 숫자 = `media` 행 수. (2026-11-14: 23, 113)
 - SFTP로 두 파일을 PC에 내려받는다. 덤프에는 회원 전화번호와 비밀번호 해시가 있다 — 공유 폴더에 두지 않는다.
+- 수동 백업은 `~/backup-cutover/`에 둔다. `~/backup/`은 자동 백업(`backup.sh`)이 쓰는 곳이고 7일이 지난 파일을 지운다.
 
 ### 1-2. 로컬에 복원하고 새 버전 띄우기
 
@@ -94,7 +95,9 @@ curl -fs http://localhost:8080/actuator/health && curl -s http://localhost:8080/
 
 ```bash
 docker compose version          # 기대: v2.24 이상 (prod 오버레이의 ports: !override)
-cat /srv/caddy/Caddyfile        # 기대: reverse_proxy localhost:8080 (경로 제한 없음 — /c/… 가 막히지 않는다)
+cat /srv/caddy/Caddyfile        # 기대: reverse_proxy localhost:8080 (경로 제한 없음 — /c/… 가 막히지 않는다).
+                                # trusted_proxies 설정이 없어야 한다 — 있으면 클라이언트가 X-Forwarded-For로 IP를 속여
+                                # 로그인·문의 제한을 피할 수 있다
 grep -E '^(CORS_ALLOWED_ORIGIN)=' /srv/church-backend/.env   # 기대: https://www.eunsaem.com
 ```
 
@@ -117,17 +120,24 @@ docker compose exec -T postgres psql -U "$DBU" -d "$DBN" -At -c \
 ```
 
 - 기대: `PostgreSQL JDBC Driver`(백엔드)만 보인다.
+
+지금 떠 있는 버전을 적어 둔다 — §4에서 되돌릴 때 이 태그가 필요하다(배포 후에는 서버에서 옛 이미지가 지워진다).
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml images backend     # TAG 열의 값(예: 0.0.52)을 기록
+```
+
 - 다르면: DBeaver 등 DB 도구를 닫는다. 락을 쥔 세션이 있으면 V19의 `ALTER TABLE`이 기다리다 배포가 실패한다.
 
 ### 2-2. backend 정지 → 백업 → 확인
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml stop backend
-TS=$(date +%Y%m%d-%H%M); mkdir -p ~/backup && chmod 700 ~/backup
-docker compose exec -T postgres pg_dump -U "$DBU" -d "$DBN" -Fc > ~/backup/db-$TS.dump
-docker cp church-backend-backend-1:/app/uploads - > ~/backup/uploads-$TS.tar
-docker compose exec -T postgres pg_restore --list < ~/backup/db-$TS.dump | grep -c 'TABLE DATA'
-tar tf ~/backup/uploads-$TS.tar | grep -vc '/$'
+TS=$(date +%Y%m%d-%H%M); mkdir -p ~/backup-cutover && chmod 700 ~/backup-cutover
+docker compose exec -T postgres pg_dump -U "$DBU" -d "$DBN" -Fc > ~/backup-cutover/db-$TS.dump
+docker cp church-backend-backend-1:/app/uploads - > ~/backup-cutover/uploads-$TS.tar
+docker compose exec -T postgres pg_restore --list < ~/backup-cutover/db-$TS.dump | grep -c 'TABLE DATA'
+tar tf ~/backup-cutover/uploads-$TS.tar | grep -vc '/$'
 docker compose exec -T postgres psql -U "$DBU" -d "$DBN" -At -c "select count(*) from media" -c "select count(*) from members"
 ```
 
@@ -152,6 +162,7 @@ grep -E '^(CHURCH_NAME|CHURCH_SLUG|TENANT_DEFAULT_SLUG|CORS_ALLOWED_ORIGIN)=' /s
 
 - 기대: 네 줄. `CORS_ALLOWED_ORIGIN`은 `https://www.eunsaem.com` — **이 값이 첫 교회의 프론트 주소로 DB에 기록된다.**
 - `CHURCH_SLUG`와 `TENANT_DEFAULT_SLUG`가 다르면 새 버전이 기동에 실패한다(의도된 동작).
+- `CHURCH_NAME`에 작은따옴표(`'`)를 넣지 않는다. 마이그레이션 SQL이 깨져 기동에 실패한다(데이터는 그대로다 — 값을 고치고 다시 배포하면 된다).
 - 지워도 되는 옛 값: `CHURCH_KEY`, `ADMIN_PHONE`, `ADMIN_NAME`, `ADMIN_PASSWORD`. 단 되돌릴 가능성이 있는 동안은 그대로 둔다.
 
 ### 2-4. 배포 PR 열기
@@ -214,7 +225,7 @@ docker compose exec -T -e REDISCLI_AUTH="$RP" redis redis-cli --scan --pattern '
 옛 코드는 새 컬럼을 무시하고, 옛 코드가 넣는 행은 기본값으로 은샘에 들어간다.
 
 1. (프론트를 이미 `/c/<slug>`로 바꿨다면) **프론트 환경변수를 먼저 원복·재배포한다.** 옛 백엔드는 `/c/…`를 모른다.
-2. GitHub → Actions → Deploy → Run workflow → `image_tag`에 이전 버전(예: `0.0.52`)을 넣고 실행한다.
+2. GitHub → Actions → Deploy → Run workflow → `image_tag`에 §2-1에서 적어 둔 이전 버전(예: `0.0.52`)을 넣고 실행한다.
 3. `curl -fs http://localhost:8080/actuator/health`, 사이트 확인.
 
 - 서버의 compose 파일은 새 버전 그대로여도 된다(옛 이미지는 추가된 환경변수를 무시한다).
@@ -238,12 +249,24 @@ BACKUP_PASSPHRASE='<길고 무작위인 값>' ./scripts/backup.sh; echo "exit=$?
 **서버 밖 보관**: 어디로 보낼지 정한다(예: OCI Object Storage 비공개 버킷). `BACKUP_UPLOAD_CMD`에 "파일 경로 하나를 받아
 올리는 명령"을 넣는다. 버킷은 비공개로 두고 보관 기간(수명 주기 규칙)을 정한다.
 
-**cron 등록** (`crontab -e`, 매일 새벽 4시):
+**cron 등록** — 비밀번호를 crontab에 직접 쓰지 않는다. cron은 줄 안의 `%`를 줄바꿈으로 바꿔서, 비밀번호에 `%`가 있으면
+명령이 중간에 잘리고 백업이 **아무 기록 없이** 돌지 않는다. 값은 파일에 두고 불러온다.
+
+```bash
+cat > ~/.backup.env <<'ENV'
+export BACKUP_PASSPHRASE='<길고 무작위인 값>'
+export BACKUP_UPLOAD_CMD='<파일 경로 하나를 받아 서버 밖으로 올리는 명령>'
+ENV
+chmod 600 ~/.backup.env
+```
+
+`crontab -e`에 한 줄(매일 새벽 4시):
 
 ```
-0 4 * * * BACKUP_PASSPHRASE='…' BACKUP_UPLOAD_CMD='…' /srv/church-backend/scripts/backup.sh >> $HOME/backup/backup.log 2>&1 || echo "backup exit=$?" >> $HOME/backup/backup.log
+0 4 * * * . $HOME/.backup.env && /srv/church-backend/scripts/backup.sh >> $HOME/backup/backup.log 2>&1; echo "$(date) exit=$?" >> $HOME/backup/backup.log
 ```
 
+- 등록한 다음 날 `tail ~/backup/backup.log`에 `exit=0`이 찍혔는지 **반드시 확인한다.** 찍히지 않았으면 cron이 돌지 않은 것이다.
 - 실패(종료 코드 1)와 경고(2 — 서버 밖 전송 안 됨, 디스크 70% 초과)를 받을 방법을 정한다(메일, 메신저 웹훅 등).
 - **복원 연습을 한 번 한다**: PC에서 `gpg -d db-….dump.gpg > db.dump` 후 §1-2처럼 로컬에 복원해 본다.
 - **다운 알림**: 외부 모니터(서비스는 운영자가 고른다)에 `https://api.eunsaem.com/actuator/health`를 등록한다.
@@ -275,6 +298,8 @@ docker logs --since 168h church-backend-backend-1 2>&1 | grep -c '기본 교회�
 - 기대: `0` — 프론트 전환 뒤 7일 동안 접두사 없는 요청이 없었다.
 - 0이 아니면: `grep '기본 교회로 처리'`로 어떤 경로인지 본다. 열려 있던 옛 탭이면 기다리고, 프론트에 접두사를 안 붙이는 코드가 남았으면 고친다.
 - 주의: 로그는 컨테이너를 다시 만들면(배포하면) 비워진다. 마지막 배포로부터 7일을 본다.
+- 주의: 컨테이너 로그는 30MB까지만 남는다. `docker logs church-backend-backend-1 2>&1 | head -1`의 시각이 7일보다 최근이면
+  로그가 넘친 것이므로, 그 시각부터의 기간만 확인된 것이다.
 - 감수하는 것: 밖에 공유된 접두사 없는 링크(예: 카톡에 올린 주보 PDF 주소)는 이후 열리지 않는다.
 
 ### 7-2. 덤프 한 번 더
