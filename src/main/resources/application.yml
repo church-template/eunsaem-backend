@@ -53,8 +53,6 @@ jwt:
 tenant:
   # 접두사(/c/{slug}) 없는 /api/** 요청을 처리할 교회. 비우면 404. 로컬·테스트·전환 기간 전용(#86).
   default-slug: ${TENANT_DEFAULT_SLUG:}
-cors:
-  allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
 file:
   upload-dir: ${FILE_UPLOAD_DIR:/app/uploads}
   base-url: ${FILE_BASE_URL:http://localhost:8080/api/media}

@@ -29,11 +29,34 @@ public class TwoChurches {
         insert(jdbc, "격리B", B_SLUG, B_ORIGIN);
         this.aId = resolver.findBySlug(A_SLUG).orElseThrow().id();
         this.bId = resolver.findBySlug(B_SLUG).orElseThrow().id();
+        copyRoles(jdbc, aId);
+        copyRoles(jdbc, bId);
     }
 
     private static void insert(JdbcClient jdbc, String name, String slug, String origin) {
         jdbc.sql("insert into churches(name, slug, frontend_origin) values (?, ?, ?) on conflict (slug) do nothing")
                 .params(name, slug, origin)
+                .update();
+    }
+
+    /**
+     * 새 교회에는 역할이 없다. 가입하려면 USER 역할이 필요하므로 첫 교회의 역할과 권한 연결을 그대로 복사한다
+     * (운영에서는 scripts/new-church.sql이 하는 일). 이미 있으면 건너뛴다.
+     */
+    private static void copyRoles(JdbcClient jdbc, long churchId) {
+        jdbc.sql("insert into roles(name, priority, is_system, description, created_at, church_id)"
+                        + " select name, priority, is_system, description, now(), ? from roles where church_id = 1"
+                        + " and name in ('SUPER_ADMIN', 'ADMIN', 'MEMBER', 'USER')"
+                        + " on conflict (church_id, name) do nothing")
+                .param(churchId)
+                .update();
+        jdbc.sql("insert into role_permissions(role_id, permission_id)"
+                        + " select mine.id, rp.permission_id from roles base"
+                        + " join role_permissions rp on rp.role_id = base.id"
+                        + " join roles mine on mine.name = base.name and mine.church_id = ?"
+                        + " where base.church_id = 1 and base.name in ('SUPER_ADMIN', 'ADMIN', 'MEMBER', 'USER')"
+                        + " on conflict do nothing")
+                .param(churchId)
                 .update();
     }
 

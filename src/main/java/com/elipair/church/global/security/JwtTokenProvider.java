@@ -1,5 +1,6 @@
 package com.elipair.church.global.security;
 
+import com.elipair.church.global.tenant.TenantContext;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -24,6 +25,9 @@ public class JwtTokenProvider {
     public static final String CLAIM_PERMISSIONS = "permissions";
     public static final String CLAIM_MAX_PRIORITY = "maxPriority";
     public static final String CLAIM_TYPE = "type";
+    /** 교회 id(#86). 요청의 교회와 다르면 그 토큰은 무효다 — 한 교회의 토큰을 다른 교회 주소에서 쓸 수 없다. */
+    public static final String CLAIM_CID = "cid";
+
     public static final String TYPE_ACCESS = "access";
     public static final String TYPE_REFRESH = "refresh";
 
@@ -51,6 +55,7 @@ public class JwtTokenProvider {
                 .claim(CLAIM_POSITION, position)
                 .claim(CLAIM_PERMISSIONS, permissions)
                 .claim(CLAIM_MAX_PRIORITY, principal.maxPriority())
+                .claim(CLAIM_CID, TenantContext.require())
                 .signWith(key)
                 .compact();
     }
