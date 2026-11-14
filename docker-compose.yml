@@ -42,7 +42,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-in-production-0123456789}
       JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-3600}
       JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-1209600}
-      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-http://localhost:3000}
+      # 멀티테넌시(#86): V18이 첫 교회 행을 만들 때 읽는 값. 기본값 없이 필수 — 운영 .env에서 빠지면
+      # localhost 같은 값이 첫 교회로 영구 기록되므로 compose 단계에서 막는다. 로컬은 .env에 개발용 값을 넣는다.
+      CHURCH_NAME: ${CHURCH_NAME:?CHURCH_NAME is required}
+      CHURCH_SLUG: ${CHURCH_SLUG:?CHURCH_SLUG is required}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:?CORS_ALLOWED_ORIGIN is required}
+      # 접두사(/c/{slug}) 없는 /api/** 요청을 처리할 교회. 로컬·전환 기간 전용, 비우면 404.
+      TENANT_DEFAULT_SLUG: ${TENANT_DEFAULT_SLUG:-}
       FILE_UPLOAD_DIR: ${FILE_UPLOAD_DIR:-/app/uploads}
       FILE_BASE_URL: ${FILE_BASE_URL:-http://localhost:8080/api/media}
       FILE_MAX_SIZE: ${FILE_MAX_SIZE:-10485760}
