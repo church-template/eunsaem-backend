@@ -12,6 +12,18 @@
 
 명령은 서버의 기본 셸(bash) 기준이다. `PSQL="…"; $PSQL -c …`처럼 변수에 담은 명령은 zsh에서는 동작하지 않는다.
 
+여러 절의 명령이 `$DBU`·`$DBN`(DB 사용자·이름)을 쓴다. SSH에 새로 접속할 때마다 먼저 이 세 줄을 실행한다:
+
+```bash
+cd /srv/church-backend
+DBU=$(grep '^DB_USERNAME=' .env | cut -d= -f2-); DBU=${DBU:-church_user}
+DBN=$(grep '^DB_NAME=' .env | cut -d= -f2-); DBN=${DBN:-church_db}
+```
+
+서버에서 `docker compose … up -d`를 **직접 실행하지 않는다.** 운영 compose는 이미지 이름·버전을 배포 워크플로가 넘겨 주는 값으로
+정하므로, 손으로 실행하면 엉뚱한 이미지를 찾다가 실패한다. 컨테이너를 다시 만들어야 할 때는 Actions의 Deploy를
+`image_tag`에 현재 버전을 넣어 실행한다. 설정 변경 없이 재시작만 할 때는 `docker restart church-backend-backend-1`.
+
 각 단계는 **명령 → 기대 결과 → 다르면 할 일** 순서로 적었다. 기대 결과와 다르면 다음 단계로 가지 않는다.
 
 ---
@@ -57,6 +69,8 @@ tar tf ~/backup-cutover/uploads-$TS.tar | grep -vc '/$'
 
 ### 1-2. 로컬에 복원하고 새 버전 띄우기
 
+덤프 파일은 **레포 밖**(예: `~/cutover/`)에 둔다 — 레포 안에 두면 git 명령에 휩쓸려 회원 정보가 git 저장소에 남을 수 있다.
+
 레포의 이슈 브랜치(또는 머지 후 `main`)에서, **개발용 override 없이** 띄운다(override는 dev 프로필이라 목데이터가 섞인다).
 로컬 `.env`에 `CHURCH_NAME=은샘교회`, `CHURCH_SLUG=<정할 slug>`, `CORS_ALLOWED_ORIGIN=https://www.eunsaem.com`,
 `TENANT_DEFAULT_SLUG=<같은 slug>`를 넣는다.
@@ -64,7 +78,7 @@ tar tf ~/backup-cutover/uploads-$TS.tar | grep -vc '/$'
 ```bash
 docker compose -f docker-compose.yml down -v          # 로컬 볼륨 초기화 (로컬 PC에서만!)
 docker compose -f docker-compose.yml up -d postgres redis
-docker compose -f docker-compose.yml exec -T postgres pg_restore -U church_user -d church_db < db-<TS>.dump
+docker compose -f docker-compose.yml exec -T postgres pg_restore -U church_user -d church_db --no-owner < ~/cutover/db-<TS>.dump
 docker compose -f docker-compose.yml up -d --build backend
 curl -fs http://localhost:8080/actuator/health
 curl -s http://localhost:8080/api/main | head -c 300
@@ -81,7 +95,8 @@ curl -s http://localhost:8080/c/<slug>/api/main | head -c 300
 V18·V19가 적용된 이 DB에서 **전환 이전 이미지**가 뜨는지 본다(§4 되돌리기의 전제).
 
 ```bash
-git stash -u && git checkout <전환 이전 커밋 또는 태그>
+git status --short                          # 기대: 변경 없음(있으면 먼저 커밋한다 — stash를 쓰지 않는다)
+git switch --detach <전환 이전 커밋 또는 태그>
 docker compose -f docker-compose.yml up -d --build backend
 curl -fs http://localhost:8080/actuator/health && curl -s http://localhost:8080/api/main | head -c 300
 ```
@@ -89,7 +104,7 @@ curl -fs http://localhost:8080/actuator/health && curl -s http://localhost:8080/
 - 기대: 헬스 `UP`, 메인 응답 정상. 로그에 "미래 마이그레이션" 경고가 나오는 것은 정상이다.
 - 옛 버전에서 글을 하나 쓰거나 회원가입을 해 본 뒤, `select church_id from members order by id desc limit 1`이 1인지 본다(`DEFAULT` 덕분).
 - 다르면: 되돌리기가 이미지 교체로는 안 된다는 뜻이다. 전환하지 말고 원인을 찾는다.
-- 끝나면 `git checkout -` 과 `git stash pop`으로 돌아온다.
+- 끝나면 `git switch -`로 돌아온다.
 
 ### 1-4. 그 밖의 사전 확인 (서버)
 
@@ -163,6 +178,8 @@ grep -E '^(CHURCH_NAME|CHURCH_SLUG|TENANT_DEFAULT_SLUG|CORS_ALLOWED_ORIGIN)=' /s
 - 기대: 네 줄. `CORS_ALLOWED_ORIGIN`은 `https://www.eunsaem.com` — **이 값이 첫 교회의 프론트 주소로 DB에 기록된다.**
 - `CHURCH_SLUG`와 `TENANT_DEFAULT_SLUG`가 다르면 새 버전이 기동에 실패한다(의도된 동작).
 - `CHURCH_NAME`에 작은따옴표(`'`)를 넣지 않는다. 마이그레이션 SQL이 깨져 기동에 실패한다(데이터는 그대로다 — 값을 고치고 다시 배포하면 된다).
+- 값을 넣지 않은 채 배포 PR을 열어 배포가 `pull`에서 멈췄다면: backend는 §2-2에서 멈춘 상태이고, 서버의 compose 파일은 이미
+  새것이라 `start backend`도 같은 오류로 실패한다. `.env`에 값을 넣은 뒤 Actions의 Deploy를 `image_tag`에 **새 버전**을 넣어 다시 실행한다.
 - 지워도 되는 옛 값: `CHURCH_KEY`, `ADMIN_PHONE`, `ADMIN_NAME`, `ADMIN_PASSWORD`. 단 되돌릴 가능성이 있는 동안은 그대로 둔다.
 
 ### 2-4. 배포 PR 열기
@@ -238,27 +255,34 @@ docker compose exec -T -e REDISCLI_AUTH="$RP" redis redis-cli --scan --pattern '
 
 1차 배포가 `scripts/backup.sh`를 서버에 복사한다. 그 전까지는 §2-2의 수동 백업이 전부다.
 
+먼저 값 파일을 만든다. 비밀번호가 셸 히스토리에 남지 않게 **편집기로** 쓴다.
+
 ```bash
-cd /srv/church-backend
-BACKUP_PASSPHRASE='<길고 무작위인 값>' ./scripts/backup.sh; echo "exit=$?"
+( umask 077; touch ~/.backup.env ); nano ~/.backup.env
 ```
 
-- 기대: "덤프: 테이블 데이터 23개 / 업로드: 파일 N개", `~/backup/`에 `.gpg` 두 개. 서버 밖 전송을 아직 안 걸었으면 `exit=2`(경고).
+파일 내용(두 번째 줄은 서버 밖 보관처를 정한 뒤에 넣는다 — 정하기 전에는 **줄을 넣지 않는다**):
+
+```
+export BACKUP_PASSPHRASE='<길고 무작위인 값>'
+export BACKUP_UPLOAD_CMD='<파일 경로 하나를 받아 서버 밖으로 올리는 명령>'
+```
+
+한 번 실행해 본다:
+
+```bash
+cd /srv/church-backend && ( . ~/.backup.env && ./scripts/backup.sh ); echo "exit=$?"
+```
+
+- 기대: "덤프: 테이블 데이터 **24**개 / 업로드: 파일 N개"(1차 배포 뒤에는 `churches`가 늘어 24), `~/backup/`에 `.gpg` 두 개.
+  서버 밖 전송을 아직 안 걸었으면 `exit=2`(경고), 걸었는데 전송이 실패하면 `exit=1`(암호화된 로컬 사본은 남는다).
 - `BACKUP_PASSPHRASE`는 비밀번호 관리자에 둔다. 잃으면 백업을 열 수 없다.
 
 **서버 밖 보관**: 어디로 보낼지 정한다(예: OCI Object Storage 비공개 버킷). `BACKUP_UPLOAD_CMD`에 "파일 경로 하나를 받아
 올리는 명령"을 넣는다. 버킷은 비공개로 두고 보관 기간(수명 주기 규칙)을 정한다.
 
-**cron 등록** — 비밀번호를 crontab에 직접 쓰지 않는다. cron은 줄 안의 `%`를 줄바꿈으로 바꿔서, 비밀번호에 `%`가 있으면
-명령이 중간에 잘리고 백업이 **아무 기록 없이** 돌지 않는다. 값은 파일에 두고 불러온다.
-
-```bash
-cat > ~/.backup.env <<'ENV'
-export BACKUP_PASSPHRASE='<길고 무작위인 값>'
-export BACKUP_UPLOAD_CMD='<파일 경로 하나를 받아 서버 밖으로 올리는 명령>'
-ENV
-chmod 600 ~/.backup.env
-```
+**cron 등록** — 값을 crontab에 직접 쓰지 않고 위 파일에서 불러온다. cron은 줄 안의 `%`를 줄바꿈으로 바꿔서, 비밀번호에 `%`가
+있으면 명령이 중간에 잘리고 백업이 **아무 기록 없이** 돌지 않는다.
 
 `crontab -e`에 한 줄(매일 새벽 4시):
 
@@ -304,7 +328,8 @@ docker logs --since 168h church-backend-backend-1 2>&1 | grep -c '기본 교회�
 
 ### 7-2. 덤프 한 번 더
 
-§2-2의 백업 명령을 다시 실행하고 PC로 내려받는다(backend는 멈추지 않아도 된다).
+§2-2의 백업 명령을 **첫 줄(`stop backend`)만 빼고** 다시 실행하고 PC로 내려받는다. 이때 첫 숫자의 기대값은 **24**다
+(1차 배포로 `churches` 테이블이 늘었다).
 
 ### 7-3. 배포
 
@@ -403,7 +428,8 @@ where church_id = <교회 id> and phone = '<숫자만 전화번호>' and deleted
 - **OCI Security List에서 8080 인그레스 규칙을 지운다.** 1차 배포 뒤 8080은 서버 안(`127.0.0.1`)에만 열린다. 밖에서는 80/443만 쓴다.
 - **`.env` 사본을 비밀번호 관리자에 둔다.** DB 비밀번호와 `JWT_SECRET`은 서버 `.env`에만 있다.
 - **`JWT_SECRET`은 전 교회 공용이다.** 유출되면 전 교회의 토큰을 위조할 수 있다. 교체 절차: `.env`의 값을 바꾼다 →
-  `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate backend` → 전 회원이 다시 로그인해야 한다.
-- **`CHURCH_NAME`·`CHURCH_SLUG`·`CORS_ALLOWED_ORIGIN`은 `.env`에서 지우지 않는다.** 값을 바꾸는 것은 문제없지만(첫 교회 행은 이미 만들어졌다), 없으면 기동이 실패한다. 교회의 프론트 주소를 바꾸려면 `churches.frontend_origin`을 고치고 backend를 재시작한다.
+  Actions의 Deploy를 `image_tag`에 현재 버전을 넣어 실행한다(컨테이너를 다시 만들어 새 값을 읽는다) → 전 회원이 다시 로그인해야 한다.
+  서버에서 `docker compose … up -d --force-recreate`를 직접 실행하면 이미지 이름을 못 찾아 실패하고, 옛 시크릿으로 계속 돈다.
+- **`CHURCH_NAME`·`CHURCH_SLUG`·`CORS_ALLOWED_ORIGIN`은 `.env`에서 지우지 않는다.** 값을 바꾸는 것은 문제없지만(첫 교회 행은 이미 만들어졌다), 없으면 기동이 실패한다. 교회의 프론트 주소를 바꾸려면 `churches.frontend_origin`을 고치고 `docker restart church-backend-backend-1`로 재시작한다.
 - **postgres·redis의 로그 용량 제한**은 전환이 안정된 뒤 별도 배포로 넣는다. 두 서비스의 compose 설정을 바꾸면 배포 때 DB와 Redis가 재시작된다.
 - **이름 정리**(레포 이름, 서버 호스트명)는 전환이 안정된 뒤 따로 한다. `/srv/church-backend` 디렉터리와 compose 프로젝트 이름은 바꾸지 않는다 — 볼륨 이름이 바뀌어 DB와 업로드 파일이 사라진 것처럼 보인다.

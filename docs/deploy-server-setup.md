@@ -165,9 +165,12 @@ CORS는 `.env`가 아니라 **`churches.frontend_origin`** 으로 정해진다 �
 docker exec -it church-backend-postgres-1 psql -U <DB_USERNAME> -d <DB_NAME> \
   -c "UPDATE churches SET frontend_origin = 'https://<프론트도메인>' WHERE slug = '<slug>';"
 
-cd /srv/church-backend
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate backend
+docker restart church-backend-backend-1     # 재시작이면 충분하다(캐시만 비우면 된다)
 ```
+
+서버에서 `docker compose … up -d`를 직접 실행하지 않는다 — 운영 compose는 이미지 이름·버전을 배포 워크플로가 넘겨 주는
+값으로 정하므로 손으로 실행하면 엉뚱한 이미지를 찾다가 실패한다. `.env` 변경을 반영하려면(컨테이너를 다시 만들어야 한다)
+Actions의 Deploy를 `image_tag`에 현재 버전을 넣어 실행한다.
 
 `FILE_BASE_URL`은 바인딩만 되고 읽는 코드가 없는 죽은 설정이라 맞출 필요가 없다.
 
