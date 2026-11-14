@@ -9,6 +9,7 @@ import com.elipair.church.domain.challenge.dto.MyProgressResponse;
 import com.elipair.church.domain.challenge.dto.ReadingLogResponse;
 import com.elipair.church.global.exception.BusinessException;
 import com.elipair.church.global.exception.ErrorCode;
+import com.elipair.church.global.tenant.TenantContext;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -131,7 +132,7 @@ public class ChallengeProgressService {
         int totalChapters = challenge.totalChapters();
         Pageable fixedOrder = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         return participationRepository
-                .findParticipants(challengeId, totalChapters, fixedOrder)
+                .findParticipants(challengeId, totalChapters, fixedOrder, TenantContext.require())
                 .map(row -> new ChallengeParticipantResponse(
                         row.getName(),
                         row.getChaptersRead(),

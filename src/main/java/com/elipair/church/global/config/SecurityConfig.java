@@ -6,8 +6,9 @@ import com.elipair.church.global.security.JwtAuthenticationFilter;
 import com.elipair.church.global.security.JwtProperties;
 import com.elipair.church.global.security.JwtTokenProvider;
 import com.elipair.church.global.security.redis.TokenBlacklist;
+import com.elipair.church.global.tenant.ChurchInfo;
+import com.elipair.church.global.tenant.TenantFilter;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,7 +23,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * 경로 인가(스펙 §4.3): /api/admin/** 인증(세부 권한은 메서드 @PreAuthorize), /api/gallery/** GALLERY_VIEW,
@@ -40,19 +40,16 @@ public class SecurityConfig {
     private final TokenBlacklist tokenBlacklist;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
-    private final String corsAllowedOrigin;
 
     public SecurityConfig(
             JwtTokenProvider tokenProvider,
             TokenBlacklist tokenBlacklist,
             JwtAuthenticationEntryPoint authenticationEntryPoint,
-            JwtAccessDeniedHandler accessDeniedHandler,
-            @Value("${cors.allowed-origin}") String corsAllowedOrigin) {
+            JwtAccessDeniedHandler accessDeniedHandler) {
         this.tokenProvider = tokenProvider;
         this.tokenBlacklist = tokenBlacklist;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
-        this.corsAllowedOrigin = corsAllowedOrigin;
     }
 
     @Bean
@@ -93,20 +90,23 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * 요청별 CORS(#86): 요청의 교회({@link TenantFilter}가 request attribute에 넣는다)의 프론트 주소 하나만 허용한다.
+     * 교회가 없는 요청(헬스·Swagger)은 CORS 설정이 없다 — 프리플라이트는 거부되고 일반 요청은 헤더 없이 통과한다.
+     * allowCredentials(true)는 와일드카드 origin과 공존할 수 없으므로 '*'는 허용하지 않는다.
+     */
     private CorsConfigurationSource corsConfigurationSource() {
-        // allowCredentials(true)는 와일드카드 origin과 공존할 수 없다(브라우저·Spring 모두 거부).
-        // 운영자가 CORS_ALLOWED_ORIGIN=*로 잘못 넣으면 모호한 런타임 오류 대신 기동 시 명확히 실패시킨다.
-        if ("*".equals(corsAllowedOrigin)) {
-            throw new IllegalStateException(
-                    "cors.allowed-origin은 '*'일 수 없습니다(credentialed CORS). CORS_ALLOWED_ORIGIN에 교회 프론트 도메인을 지정하세요.");
-        }
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(corsAllowedOrigin));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
+        return request -> {
+            if (!(request.getAttribute(TenantFilter.CHURCH_ATTRIBUTE) instanceof ChurchInfo church)
+                    || "*".equals(church.frontendOrigin())) {
+                return null;
+            }
+            CorsConfiguration config = new CorsConfiguration();
+            config.setAllowedOrigins(List.of(church.frontendOrigin()));
+            config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+            config.setAllowedHeaders(List.of("*"));
+            config.setAllowCredentials(true);
+            return config;
+        };
     }
 }

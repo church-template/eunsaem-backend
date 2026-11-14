@@ -1,6 +1,7 @@
 package com.elipair.church.global.security;
 
 import com.elipair.church.global.security.redis.TokenBlacklist;
+import com.elipair.church.global.tenant.TenantContext;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -43,7 +44,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String jti = claims.getId();
                 boolean isAccess =
                         JwtTokenProvider.TYPE_ACCESS.equals(claims.get(JwtTokenProvider.CLAIM_TYPE, String.class));
-                if (isAccess && jti != null && !tokenBlacklist.isBlacklisted(jti)) {
+                // 토큰의 교회(cid)가 요청의 교회와 같아야 한다(#86). cid가 없는 전환 전 토큰도 여기서 걸러진다
+                // — 클라이언트가 refresh로 새 토큰을 받는다. 둘 중 하나라도 null이면 인증을 세우지 않는다.
+                Long tokenChurch = claims.get(JwtTokenProvider.CLAIM_CID, Long.class);
+                boolean sameChurch = tokenChurch != null && tokenChurch.equals(TenantContext.currentOrNull());
+                if (isAccess && sameChurch && jti != null && !tokenBlacklist.isBlacklisted(jti)) {
                     SecurityContextHolder.getContext().setAuthentication(toAuthentication(claims));
                 }
             } catch (JwtException | IllegalArgumentException ignored) {

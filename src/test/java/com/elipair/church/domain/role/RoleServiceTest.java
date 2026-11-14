@@ -52,12 +52,19 @@ class RoleServiceTest {
     }
 
     @Test
-    void create_allows_equal_priority_to_requester() {
-        when(roleRepository.existsByName("PEER")).thenReturn(false);
+    void create_rejects_equal_priority_to_requester() {
+        // 같은 레벨(900)은 만들 수 없다 — 낮은 역할을 준 뒤 올리는 우회를 막으려면 생성·변경 모두 엄격히 낮아야 한다.
+        assertThatThrownBy(() -> service().create(new RoleCreateRequest("PEER", 900, "동급"), 900))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode())
+                        .isEqualTo(ErrorCode.ACCESS_DENIED));
+    }
+
+    @Test
+    void create_allows_priority_just_below_requester() {
+        when(roleRepository.existsByName("NEAR")).thenReturn(false);
         when(roleRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        // 같은 레벨(900) 허용
-        service().create(new RoleCreateRequest("PEER", 900, "동급"), 900);
+        service().create(new RoleCreateRequest("NEAR", 899, "바로 아래"), 900);
 
         verify(roleRepository).saveAndFlush(any());
     }

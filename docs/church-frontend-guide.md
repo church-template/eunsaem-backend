@@ -16,17 +16,21 @@
 
 ### 0.2 baseURL · 인증 헤더
 
-- 모든 API는 `/api/**` 프리픽스. Swagger UI는 `/docs/swagger-ui.html`, 스펙은 `/v3/api-docs`(둘 다 공개).
+- **baseURL에는 교회 접두사가 들어간다**: `NEXT_PUBLIC_API_BASE=https://<공용API>/c/<slug>` (예: `https://api.eunsaem.com/c/<slug>`). API 서버 하나를 모든 교회가 공유하고(멀티테넌시), 서버는 경로 접두사 `/c/<slug>`로 어느 교회 요청인지 정한다. 값은 교회 등록 스크립트가 출력해 준다(`docs/setup-new-church.md`).
+- 모든 API는 그 baseURL 아래 `/api/**` 프리픽스다 — 실제 호출은 `https://<공용API>/c/<slug>/api/...`. 이 문서와 OpenAPI의 경로(`/api/...`)는 접두사를 생략한 것이므로, **모든 요청(fetch·서버 사이드 호출·`<img src>`·PDF 링크)을 반드시 `NEXT_PUBLIC_API_BASE`를 거쳐 조립**한다. 접두사가 빠지거나 slug가 틀리면 `404 RESOURCE_NOT_FOUND`다.
+- Swagger UI(`/docs/swagger-ui.html`)와 스펙(`/v3/api-docs`)은 접두사 없이 공용 도메인 바로 아래에 있다(둘 다 공개).
 - 보호 요청은 모두 `Authorization: Bearer <accessToken>` 헤더 필요. 서버는 **STATELESS**(쿠키·세션 없음) — 토큰은 클라이언트가 보관·재전송한다.
-- **CORS**: 서버는 단일 origin + `allowCredentials(true)`로 기동된다. 프론트 도메인이 서버 `CORS_ALLOWED_ORIGIN`과 정확히 일치해야 한다(`*` 설정 시 서버가 기동 실패).
+- **토큰은 교회별이다.** access 토큰에는 발급한 교회의 id(`cid`)가 들어 있어, 다른 교회 접두사로 보내면 `401 INVALID_TOKEN`이다. refresh도 발급받은 교회 접두사에서만 된다. 계정도 교회별이라 같은 전화번호로 교회마다 따로 가입한다.
+- **CORS**: 서버는 요청마다 **그 교회에 등록된 프론트 origin 하나**(`churches.frontend_origin`)만 허용한다(`allowCredentials(true)`, `*` 불가). 프론트 도메인이 교회 등록 때 입력한 주소와 글자 그대로 일치해야 한다(`www` 유무·스킴 포함). 도메인을 바꾸면 운영자에게 DB 값 변경을 요청한다.
 
 ### 0.3 프론트가 알아야 할 env
 
-프론트는 토큰 만료값·교회 고유값을 **하드코딩하지 말 것**. 서버 env가 출처이며, 프론트가 직접 의존하는 값은 다음 하나뿐.
+프론트는 토큰 만료값·교회 고유값을 **하드코딩하지 말 것**. 프론트가 직접 의존하는 값은 `NEXT_PUBLIC_API_BASE` 하나뿐이다.
 
 | 키 | 용도 | 프론트 사용처 |
 |---|---|---|
-| `FILE_BASE_URL` | 미디어 서빙 베이스 | `media:{id}` → 실제 URL 치환. 다만 본 백엔드는 공개 서빙 경로 `GET /api/media/{id}`를 직접 제공하므로, 프론트는 보통 `media:{id}` → `/api/media/{id}`로 치환한다(5장) |
+| `NEXT_PUBLIC_API_BASE` (프론트 env) | 교회 접두사를 포함한 API 베이스 `https://<공용API>/c/<slug>` | 모든 API 호출과 미디어 URL의 앞부분. `media:{id}` → `${NEXT_PUBLIC_API_BASE}/api/media/{id}`(5장). `next/image` 허용 패턴도 접두사를 포함한 경로(`/c/<slug>/api/media/**`)여야 한다 |
+| `FILE_BASE_URL` (서버 env) | — | 서버에 바인딩만 되고 쓰이지 않는 설정이다. 프론트는 의존하지 않는다 |
 | `JWT_ACCESS_EXPIRY` / `JWT_REFRESH_EXPIRY` | 토큰 수명(1h / 14d) | **프론트가 하드코딩 금지** — 만료는 401 응답으로 감지하고 refresh로 대응(1장) |
 
 > 교회 이름·도메인 같은 고유값은 프론트 빌드 시 주입한다(12장).
@@ -51,6 +55,7 @@
 - `member` = `MemberSummary`(uuid·name·phone·position·roles) — **표시용**. 권한 판단엔 쓰지 말 것(2장).
 - `requiresAgreement` = boolean. `true`면 **재동의 플로우로** 보낸다(9장).
 - **로그인 실패는 전화번호 존재 여부와 무관하게 항상 동일한 `401 AUTHENTICATION_FAILED`.** "없는 번호" vs "비번 오류"를 구분 표시하면 안 된다 → 단일 메시지("전화번호 또는 비밀번호가 올바르지 않습니다").
+- **로그인 시도 제한**: 실패가 15분 안에 같은 전화번호·IP로 10회(또는 IP당 100회)를 넘으면 `429 RATE_LIMIT_EXCEEDED` → "잠시 후 다시 시도" 안내(`detail` 표시).
 
 ### 1.3 토큰 저장·재발급·로그아웃
 
@@ -166,9 +171,11 @@ async function authFetch(url: string, init: RequestInit = {}): Promise<Response>
 | 가드 | 규칙 | 위반 시 |
 |---|---|---|
 | 위계(escalation) | 대상 역할 priority가 **내 `maxPriority` 초과**면 차단(같은 레벨은 허용) | 403 |
+| 역할 priority 입력 | 역할을 만들거나 priority를 바꿀 때 새 값은 **내 `maxPriority`보다 작아야** 한다(같은 값 불가). 입력 상한 = `maxPriority - 1` | 403 |
 | 시스템 역할 | `isSystem=true`(`SUPER_ADMIN`/`ADMIN`/`USER`) 수정·삭제 불가 | 403 |
 | 자기 보호 | **자기 자신**의 역할 부여/회수 불가 | 403 |
-| 마지막 SUPER_ADMIN | 활성 SUPER_ADMIN이 1명이면 그 역할 회수·강등·삭제 불가 | 403 |
+| 마지막 SUPER_ADMIN | 그 교회의 활성 SUPER_ADMIN이 1명이면 그 역할 회수·강등·삭제 불가 | 403 |
+| 다른 회원 관리 | 관리자의 회원 정보 수정·직분 지정·비밀번호 초기화는 **대상 회원의 최고 priority가 내 `maxPriority` 이하**일 때만(같은 레벨 허용). `ADMIN`은 `SUPER_ADMIN` 회원을 바꿀 수 없다 | 403 |
 
 > 위계 위반은 **모두 `errorCode=ACCESS_DENIED`로 동일**하다. 구체 사유는 한글 `detail` 텍스트에만 담긴다(코드로 구분 불가) → 상세 사유 표시는 `detail`을 그대로 보여준다.
 
@@ -289,7 +296,7 @@ async function handleApiError(res: Response): Promise<never> {
 
 ### 5.2 `media:{id}` → URL 치환
 
-본문 속 이미지·PDF는 URL이 아니라 **`media:{id}` 리터럴**로 참조된다(`![alt](media:42)`, `[제목](media:42)`). 렌더 전에 실제 서빙 URL `GET /api/media/{id}`(공개)로 치환한다. 이 모델 덕에 본문이 교회별 베이스 URL과 무관하게 동일하다.
+본문 속 이미지·PDF는 URL이 아니라 **`media:{id}` 리터럴**로 참조된다(`![alt](media:42)`, `[제목](media:42)`). 렌더 전에 실제 서빙 URL `GET /api/media/{id}`(공개)로 치환한다. 이 모델 덕에 본문이 교회별 베이스 URL과 무관하게 동일하다. **치환 결과는 교회 접두사를 포함한 절대 URL**(`${NEXT_PUBLIC_API_BASE}/api/media/{id}`)이어야 한다 — 상대경로 `/api/media/{id}`는 접두사가 없어 교회를 정할 수 없다. 다른 교회의 미디어 id는 404다.
 
 - `GET /api/media/{id}`는 파일 바이트를 반환하며 응답에 `X-Content-Type-Options: nosniff`가 붙는다(MIME 스니핑 기반 저장형 XSS 차단). 관리용 메타 조회(`/api/admin/media/{id}`)와 다르다(6장).
 - **치환 순서**: 마크다운 파싱 후 sanitize까지 끝낸 다음 `media:{id}`를 URL로 바꾸거나, sanitize 단계에서 허용 스킴/도메인을 통제하라. 어느 쪽이든 **새니타이즈는 반드시 거친다.**
@@ -304,8 +311,8 @@ import DOMPurify from "dompurify";
 const MEDIA_REF = /media:(\d+)(?!\d)/g;
 
 function renderMarkdown(raw: string): string {
-  // 1) media:{id} → 공개 서빙 URL
-  const withUrls = raw.replace(MEDIA_REF, (_, id) => `/api/media/${id}`);
+  // 1) media:{id} → 공개 서빙 URL (API_BASE = NEXT_PUBLIC_API_BASE, 교회 접두사 /c/<slug> 포함)
+  const withUrls = raw.replace(MEDIA_REF, (_, id) => `${API_BASE}/api/media/${id}`);
   // 2) 마크다운 → HTML
   const html = marked.parse(withUrls, { async: false }) as string;
   // 3) 새니타이즈(raw HTML/스크립트 제거) — 서버가 안 하므로 필수
@@ -442,6 +449,7 @@ async function saveWithRetry(id: number, edit: (cur: Detail) => UpdateReq) {
 ## 12. 백엔드에 없는 것
 
 - **교회 소개·연혁·비전·오시는 길** 등 거의 안 바뀌는 상수 콘텐츠는 **API에 없다** — 프론트에 하드코딩한다(프론트가 교회별이므로).
-- **교회 고유값**(이름·도메인·로고 등)은 **프론트 빌드 시 주입**한다(0.3).
+- **교회 고유값**(이름·도메인·로고 등)은 **프론트 빌드 시 주입**한다(0.3). 백엔드가 아는 교회별 값은 slug와 프론트 origin뿐이다.
+- **교회를 가로지르는 계정·토큰 없음** — 한 번 로그인으로 여러 교회를 오갈 수 없다(0.2).
 - **SMTP·이메일 인증 없음** — 신원 확인은 `MEMBER` 역할 부여로 대체(1.1).
 - **복잡한 비밀번호 정책 없음** — 최소 길이(~8자)만, 특수문자·대소문자 강제 없음(고령 사용자 배려).

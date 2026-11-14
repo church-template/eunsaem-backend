@@ -102,14 +102,15 @@ jobs:
         with:
           persist-credentials: false # 이후 스텝(서드파티 액션)에 토큰 잔류 방지
 
-      - name: compose 파일 서버 동기화
+      - name: compose 파일·운영 스크립트 서버 동기화
         if: steps.gate.outputs.ready == 'true'
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "docker-compose.yml,docker-compose.prod.yml"
+          # scripts/* = 새 교회 등록·백업 스크립트(#86). 운영자가 서버에서 직접 실행한다.
+          source: "docker-compose.yml,docker-compose.prod.yml,scripts/new-church.sh,scripts/new-church.sql,scripts/backup.sh"
           target: /srv/church-backend
 
       # GHCR 패키지가 private이라 pull에 인증이 필요하다. 서버에 영구 자격증명(수동 docker login)을
@@ -134,8 +135,11 @@ jobs:
             trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             cd /srv/church-backend
+            chmod +x scripts/*.sh
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
             # 헬스 게이트 — 기동 실패 시 워크플로우를 red로 (JVM 기동 + healthcheck start_period 감안 최대 180초 대기)
             timeout 180 bash -c 'until curl -fs http://localhost:8080/actuator/health >/dev/null; do sleep 5; done'
-            docker image prune -f
+            # -a: 쓰지 않는 이미지를 태그가 있어도 지운다. -f만 쓰면 버전 태그가 붙은 옛 이미지가 배포마다 쌓인다
+            # (2026-11 실측 2.2GB). 되돌릴 때는 이 워크플로가 지정한 태그를 다시 pull한다.
+            docker image prune -af

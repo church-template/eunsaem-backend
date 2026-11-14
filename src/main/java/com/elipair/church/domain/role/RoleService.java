@@ -40,7 +40,7 @@ public class RoleService {
     @Transactional
     public RoleResponse create(RoleCreateRequest request, int requesterMaxPriority) {
         String name = normalizeName(request.name());
-        hierarchyValidator.validateAssignable(requesterMaxPriority, request.priority());
+        hierarchyValidator.validateNewPriority(requesterMaxPriority, request.priority());
         if (roleRepository.existsByName(name)) {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
@@ -88,8 +88,9 @@ public class RoleService {
                 throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
             }
         }
-        if (request.priority() != null) {
-            hierarchyValidator.validateAssignable(requesterMaxPriority, request.priority());
+        // priority를 실제로 바꿀 때만 검사한다 — 동급 역할의 이름·설명만 고치면서 같은 값을 그대로 보내는 것은 허용.
+        if (request.priority() != null && request.priority() != role.getPriority()) {
+            hierarchyValidator.validateNewPriority(requesterMaxPriority, request.priority());
         }
         role.update(name, request.priority(), normalizeDescription(request.description()));
         return persist(role);

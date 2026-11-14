@@ -9,8 +9,10 @@ import com.elipair.church.domain.auth.dto.RefreshResponse;
 import com.elipair.church.domain.auth.dto.SignupRequest;
 import com.elipair.church.domain.auth.dto.SignupResponse;
 import com.elipair.church.global.security.MemberPrincipal;
+import com.elipair.church.global.web.ClientIp;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -58,8 +60,8 @@ public class AuthController {
                     - 부수효과: 인증 실패 시 전화번호 존재 여부와 무관하게 동일한 401 AUTHENTICATION_FAILED 반환(계정 열거 방지)
                     """)
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
+        return authService.login(request, ClientIp.resolve(servletRequest));
     }
 
     @Operation(summary = "토큰 재발급", description = """

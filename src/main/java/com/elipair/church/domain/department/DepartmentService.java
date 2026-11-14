@@ -7,6 +7,7 @@ import com.elipair.church.domain.department.dto.DepartmentPatchRequest;
 import com.elipair.church.domain.department.dto.DepartmentUpdateRequest;
 import com.elipair.church.global.exception.BusinessException;
 import com.elipair.church.global.exception.ErrorCode;
+import com.elipair.church.global.tenant.TenantContext;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -48,7 +49,7 @@ public class DepartmentService {
     @Transactional
     public DepartmentDetailResponse create(DepartmentCreateRequest req) {
         if (req.parentId() != null) {
-            repository.lockHierarchy(HIERARCHY_LOCK_KEY); // 부모 검증/삭제 경합 직렬화(설계 §5.3)
+            repository.lockHierarchy(hierarchyLockKey()); // 부모 검증/삭제 경합 직렬화(설계 §5.3)
         }
         validateParent(null, req.parentId());
         int sortOrder = req.sortOrder() != null
@@ -61,7 +62,7 @@ public class DepartmentService {
 
     @Transactional
     public DepartmentDetailResponse update(Long id, DepartmentUpdateRequest req) {
-        repository.lockHierarchy(HIERARCHY_LOCK_KEY); // PUT은 항상 parentId 세팅 → reparent 가능(설계 §5.3)
+        repository.lockHierarchy(hierarchyLockKey()); // PUT은 항상 parentId 세팅 → reparent 가능(설계 §5.3)
         Department dept = load(id);
         checkVersion(dept, req.version());
         validateParent(id, req.parentId());
@@ -73,7 +74,7 @@ public class DepartmentService {
     @Transactional
     public DepartmentDetailResponse patch(Long id, DepartmentPatchRequest req) {
         if (req.parentId() != null) {
-            repository.lockHierarchy(HIERARCHY_LOCK_KEY); // 부모 변경 시에만 직렬화(설계 §5.3)
+            repository.lockHierarchy(hierarchyLockKey()); // 부모 변경 시에만 직렬화(설계 §5.3)
         }
         Department dept = load(id);
         checkVersion(dept, req.version());
@@ -87,7 +88,7 @@ public class DepartmentService {
 
     @Transactional
     public void delete(Long id) {
-        repository.lockHierarchy(HIERARCHY_LOCK_KEY); // 자식 존재 검사 vs 동시 create-child 경합 직렬화(설계 §5.3)
+        repository.lockHierarchy(hierarchyLockKey()); // 자식 존재 검사 vs 동시 create-child 경합 직렬화(설계 §5.3)
         Department dept = load(id);
         if (repository.existsByParentIdAndDeletedAtIsNull(id)) {
             throw new BusinessException(ErrorCode.DEPARTMENT_HAS_CHILDREN);
@@ -147,5 +148,10 @@ public class DepartmentService {
                 d.getCreatedAt(),
                 d.getUpdatedAt(),
                 d.getVersion());
+    }
+
+    /** 계층 락 키에 교회 id를 섞는다(#86) — 교회끼리 서로의 부서 변경을 기다리지 않게 한다. */
+    private static long hierarchyLockKey() {
+        return HIERARCHY_LOCK_KEY * 1_000_003L + TenantContext.require();
     }
 }

@@ -28,13 +28,18 @@ public interface ChallengeParticipationRepository extends JpaRepository<Challeng
                            p.chapters_read as chaptersRead, p.rounds_completed as roundsCompleted
                     from challenge_participations p
                     join members m on m.id = p.member_id
-                    where p.challenge_id = :challengeId and p.deleted_at is null and m.deleted_at is null
+                    where p.church_id = :churchId and p.challenge_id = :challengeId
+                      and p.deleted_at is null and m.deleted_at is null
                     order by p.rounds_completed * :totalChapters + p.chapters_read desc, p.id
                     """, countQuery = """
                     select count(*) from challenge_participations p
                     join members m on m.id = p.member_id
-                    where p.challenge_id = :challengeId and p.deleted_at is null and m.deleted_at is null
+                    where p.church_id = :churchId and p.challenge_id = :challengeId
+                      and p.deleted_at is null and m.deleted_at is null
                     """, nativeQuery = true)
     Page<ChallengeParticipantRow> findParticipants(
-            @Param("challengeId") Long challengeId, @Param("totalChapters") int totalChapters, Pageable pageable);
+            @Param("challengeId") Long challengeId,
+            @Param("totalChapters") int totalChapters,
+            Pageable pageable,
+            @Param("churchId") long churchId);
 }
