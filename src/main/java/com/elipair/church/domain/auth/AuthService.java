@@ -40,6 +40,7 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenStore refreshTokenStore;
     private final AccessTokenBlacklister accessTokenBlacklister;
+    private final LoginRateLimiter loginRateLimiter;
 
     public AuthService(
             MemberRepository memberRepository,
@@ -47,13 +48,15 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtTokenProvider tokenProvider,
             RefreshTokenStore refreshTokenStore,
-            AccessTokenBlacklister accessTokenBlacklister) {
+            AccessTokenBlacklister accessTokenBlacklister,
+            LoginRateLimiter loginRateLimiter) {
         this.memberRepository = memberRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.refreshTokenStore = refreshTokenStore;
         this.accessTokenBlacklister = accessTokenBlacklister;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     @Transactional
@@ -82,14 +85,16 @@ public class AuthService {
         return SignupResponse.from(member);
     }
 
-    public LoginResponse login(LoginRequest request) {
+    /** clientIp는 시도 제한의 잠금 단위((교회, 전화번호, IP), #86)에 쓴다. */
+    public LoginResponse login(LoginRequest request, String clientIp) {
         String phone = PhoneNumbers.normalize(request.phone());
-        Member member = memberRepository
-                .findByPhoneAndDeletedAtIsNull(phone)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUTHENTICATION_FAILED));
-        if (!passwordEncoder.matches(request.password(), member.getPassword())) {
+        loginRateLimiter.checkAllowed(phone, clientIp); // 한도 초과 → 429 (맞는 비밀번호도 막는다)
+        Member member = memberRepository.findByPhoneAndDeletedAtIsNull(phone).orElse(null);
+        if (member == null || !passwordEncoder.matches(request.password(), member.getPassword())) {
+            loginRateLimiter.recordFailure(phone, clientIp); // 미존재 번호도 똑같이 센다
             throw new BusinessException(ErrorCode.AUTHENTICATION_FAILED); // 미존재와 구분 없는 동일 응답
         }
+        loginRateLimiter.reset(phone, clientIp);
         TokenPair tokens = issueTokens(member);
         boolean requiresAgreement = !(member.isTermsAgreed() && member.isPrivacyAgreed());
         return new LoginResponse(tokens, MemberSummary.from(member), requiresAgreement);

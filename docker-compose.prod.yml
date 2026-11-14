@@ -7,6 +7,11 @@
 services:
   backend:
     image: ${IMAGE_NAME:-ghcr.io/church-template/church-backend}:${IMAGE_TAG:-latest}
+    # 백엔드 포트를 외부에 열지 않는다(#86). Caddy가 host 네트워크라 localhost:8080으로 닿는다.
+    # 0.0.0.0에 열면 TLS 없이 직접 접근할 수 있고, 앱이 프록시 헤더(X-Forwarded-For)를 신뢰하므로
+    # 클라이언트가 IP를 속여 문의·로그인 제한을 우회할 수 있다. !override는 base의 ports를 대체한다(Compose 2.24+).
+    ports: !override
+      - "127.0.0.1:8080:8080"
 
   # 호스트 DB 도구(DBeaver 등)가 SSH 터널로 postgres에 붙기 위한 포트 노출.
   # 127.0.0.1 바인딩이라 퍼블릭 인터페이스에는 뜨지 않는다(외부 접근 불가 — 호스트 로컬/SSH 터널 전용).

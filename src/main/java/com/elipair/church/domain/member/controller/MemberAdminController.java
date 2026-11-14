@@ -50,8 +50,11 @@ public class MemberAdminController {
                     """)
     @PatchMapping("/{uuid}")
     @PreAuthorize("hasAuthority('MEMBER_MANAGE')")
-    public MemberDetailResponse update(@PathVariable UUID uuid, @Valid @RequestBody AdminMemberUpdateRequest request) {
-        return memberService.adminUpdate(uuid, request);
+    public MemberDetailResponse update(
+            @PathVariable UUID uuid,
+            @Valid @RequestBody AdminMemberUpdateRequest request,
+            @AuthenticationPrincipal MemberPrincipal principal) {
+        return memberService.adminUpdate(uuid, request, principal.maxPriority());
     }
 
     @Operation(summary = "직분 부여/해제", description = """
@@ -65,8 +68,11 @@ public class MemberAdminController {
                     """)
     @PutMapping("/{uuid}/position")
     @PreAuthorize("hasAuthority('MEMBER_MANAGE')")
-    public MemberDetailResponse changePosition(@PathVariable UUID uuid, @RequestBody PositionAssignRequest request) {
-        return memberService.changePosition(uuid, request.positionId());
+    public MemberDetailResponse changePosition(
+            @PathVariable UUID uuid,
+            @RequestBody PositionAssignRequest request,
+            @AuthenticationPrincipal MemberPrincipal principal) {
+        return memberService.changePosition(uuid, request.positionId(), principal.maxPriority());
     }
 
     @Operation(summary = "비밀번호 초기화", description = """
@@ -79,8 +85,9 @@ public class MemberAdminController {
                     """)
     @PostMapping("/{uuid}/reset-password")
     @PreAuthorize("hasAuthority('MEMBER_MANAGE')")
-    public ResetPasswordResponse resetPassword(@PathVariable UUID uuid) {
-        return memberService.resetPassword(uuid);
+    public ResetPasswordResponse resetPassword(
+            @PathVariable UUID uuid, @AuthenticationPrincipal MemberPrincipal principal) {
+        return memberService.resetPassword(uuid, principal.maxPriority());
     }
 
     @Operation(summary = "역할 부여", description = """
