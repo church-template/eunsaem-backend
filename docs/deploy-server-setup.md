@@ -1,7 +1,8 @@
-# 배포 서버 초기 세팅 가이드 (OCI VM, 교회별 1회)
+# 배포 서버 초기 세팅 가이드 (OCI VM, 플랫폼 전체에 1회)
 
-새 교회 배포 = **코드 수정 0**. 이 문서의 체크리스트만 수행하면
-`deploy` 브랜치 push마다 GitHub Actions가 자동 배포한다.
+서버 한 대가 **모든 교회**를 서비스한다(멀티테넌시, #86). 이 문서는 그 서버를 처음 만들 때 한 번만 수행한다.
+이후에는 `deploy` 브랜치 push마다 GitHub Actions가 자동 배포하고,
+교회를 추가할 때는 서버를 새로 만들지 않고 `docs/setup-new-church.md`의 등록 스크립트만 실행한다.
 
 전제: OCI VM (Ubuntu 22.04+ 권장, Ampere ARM/x86 모두 지원 — 이미지가 멀티아치).
 
@@ -21,8 +22,23 @@ sudo chown $USER:$USER /srv/church-backend
 ```
 
 레포의 `.env.example`을 참고해 `/srv/church-backend/.env`를 작성한다.
-반드시 채울 값: `DB_PASSWORD`, `REDIS_PASSWORD`, `JWT_SECRET`(교회마다 반드시 다르게),
-`CORS_ALLOWED_ORIGIN`, `FILE_BASE_URL`, (최초 1회) `ADMIN_PHONE`/`ADMIN_NAME`/`ADMIN_PASSWORD`.
+반드시 채울 값:
+
+| 키 | 설명 |
+|---|---|
+| `DB_PASSWORD` / `REDIS_PASSWORD` | 강한 랜덤 값 |
+| `JWT_SECRET` | 플랫폼 전체에 하나(전 교회 공용). 유출되면 전 교회 토큰을 위조할 수 있다 |
+| `CHURCH_NAME` / `CHURCH_SLUG` | **첫 교회**의 이름과 slug(소문자·숫자·하이픈). 첫 기동 때 V18 마이그레이션이 `churches` 첫 행으로 기록한다 |
+| `CORS_ALLOWED_ORIGIN` | **첫 교회**의 프론트 origin(예: `https://www.<교회도메인>`). 위와 같이 V18이 한 번 읽는다 |
+
+- `CHURCH_NAME`·`CHURCH_SLUG`·`CORS_ALLOWED_ORIGIN`은 빠지면 compose가 실행을 거부한다. 첫 기동 때 값이 **영구 기록**되므로
+  오타 없이 넣는다. 그 뒤에는 런타임에서 쓰이지 않지만 **지우지 않는다**(값을 바꾸는 것은 무해하다).
+- 선택: `TENANT_DEFAULT_SLUG` — 접두사(`/c/<slug>`) 없는 `/api/**` 요청을 처리할 교회. 첫 교회 프론트가 아직 접두사 없는
+  주소를 쓰는 전환 기간에만 넣고, 끝나면 지운다. 비우면 그런 요청은 404이고, `churches`에 없는 slug를 넣으면 기동이 실패한다.
+- 두 번째 교회부터는 `.env`를 건드리지 않는다 — 교회별 값은 `churches` 테이블에 있다(`docs/setup-new-church.md`).
+- 최초 관리자를 만드는 환경변수는 없다. 서버를 새로 만든 경우 첫 교회(V18이 만든 행)에는 관리자가 없으므로,
+  대표자가 일반 가입을 한 뒤 운영자가 DB에서 `SUPER_ADMIN`을 연결한다(`docs/setup-new-church.md` §3의 SQL).
+  두 번째 교회부터는 등록 스크립트가 대표자 계정까지 만든다.
 
 ```bash
 chmod 600 /srv/church-backend/.env
@@ -43,12 +59,17 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 
 **(a) OCI 콘솔** — VCN → 서브넷의 Security List(또는 NSG)에 인그레스 규칙 추가:
 - TCP 22 (SSH — 가능하면 관리자 IP로 제한)
-- TCP 8080 (또는 리버스 프록시 도입 시 80/443)
+- TCP 80 / 443 (Caddy 리버스 프록시 — §7)
 
-**(b) OS 방화벽** — OCI 기본 이미지는 iptables가 별도로 막고 있다:
+**8080은 열지 않는다.** 운영 compose(`docker-compose.prod.yml`)가 backend 포트를 `127.0.0.1:8080`에만 묶으므로
+외부에서는 닿지 않고, host 네트워크의 Caddy만 `localhost:8080`으로 접근한다. 8080을 밖에 열면 TLS 없이 직접 접근할 수 있고,
+앱이 프록시 헤더(`X-Forwarded-For`)를 신뢰하므로 클라이언트가 IP를 속여 문의·로그인 시도 제한을 우회할 수 있다.
+
+**(b) OS 방화벽** — OCI 기본 이미지는 iptables가 별도로 막고 있다. Caddy는 host 네트워크로 뜨므로(§7)
+외부에서 80/443이 닿지 않으면 OS 방화벽에서도 연다(8080 규칙은 넣지 않는다):
 
 ```bash
-sudo iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
+sudo iptables -I INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT
 sudo netfilter-persistent save   # Ubuntu (iptables-persistent)
 ```
 
@@ -89,9 +110,11 @@ curl -f http://localhost:8080/actuator/health       # {"status":"UP"}
 (자체서명/IP는 브라우저의 mixed-content·인증서 거부). Caddy가 도메인별 Let's Encrypt 인증서를
 자동 발급·갱신하며, 백엔드 재배포와 독립적으로(재부팅 시 자동) 뜬다.
 
-전제: 80/443이 클라우드 방화벽(§4)에서 열려 있을 것. docker-published 포트는 호스트 iptables
-INPUT을 우회하므로 보통 Security List만 열면 된다. **리버스 프록시 도입 후 8080은 외부에서 닫는다**
-(80/443만 개방) — 원(raw) 백엔드를 직접 노출하지 않기 위함.
+전제: 80/443이 방화벽(§4)에서 열려 있을 것. 8080은 `127.0.0.1`에만 묶여 있어 외부에서 닿지 않는다(§4) —
+원(raw) 백엔드를 직접 노출하지 않는다.
+
+API 도메인은 **전 교회 공용 하나**다(현재 `api.eunsaem.com`). 교회는 도메인이 아니라 경로 접두사 `/c/<slug>`로
+구분하므로, 교회를 추가해도 DNS·Caddy를 건드리지 않는다. 아래 `api.<교회도메인>`은 이 공용 API 도메인을 뜻한다.
 
 ### 7-1. DNS
 
@@ -129,14 +152,24 @@ cd /srv/caddy && docker compose up -d && docker compose logs --tail 25
 
 로그에 `certificate obtained successfully`(또는 에러 없는 `serving initial configuration`)가 뜨면 성공.
 
-### 7-3. `.env`에 도메인 반영 + 백엔드 재기동
+### 7-3. 교회의 프론트 주소(CORS)
+
+CORS는 `.env`가 아니라 **`churches.frontend_origin`** 으로 정해진다 — 요청마다 그 교회의 origin 하나만 허용한다.
+
+- **첫 배포 전**이라면 `.env`의 `CORS_ALLOWED_ORIGIN`에 첫 교회 프론트 주소를 정확히 넣는다(§2). 첫 기동 때 V18이 이 값을
+  `churches` 첫 행에 기록한다.
+- **첫 배포 후**에는 `.env`의 `CORS_ALLOWED_ORIGIN`을 바꿔도 아무 일도 일어나지 않는다. 교회의 프론트 주소를 바꾸려면
+  DB 값을 고치고 backend를 재기동한다(교회 정보는 메모리에 캐시된다):
 
 ```bash
-sed -i 's#^CORS_ALLOWED_ORIGIN=.*#CORS_ALLOWED_ORIGIN=https://<프론트도메인>#' /srv/church-backend/.env
-sed -i 's#^FILE_BASE_URL=.*#FILE_BASE_URL=https://api.<교회도메인>/api/media#' /srv/church-backend/.env
+docker exec -it church-backend-postgres-1 psql -U <DB_USERNAME> -d <DB_NAME> \
+  -c "UPDATE churches SET frontend_origin = 'https://<프론트도메인>' WHERE slug = '<slug>';"
 
 cd /srv/church-backend
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate backend
 ```
 
+`FILE_BASE_URL`은 바인딩만 되고 읽는 코드가 없는 죽은 설정이라 맞출 필요가 없다.
+
 확인: `curl -s https://api.<교회도메인>/actuator/health` → `{"status":"UP"}`, 브라우저에서 자물쇠(유효 인증서).
+교회별 API는 `https://api.<교회도메인>/c/<slug>/api/main`으로 확인한다.
