@@ -30,10 +30,10 @@
    (스크립트 두 파일은 배포 워크플로가 compose 파일과 함께 `/srv/church-backend/scripts/`로 복사한다.)
 3. 차례로 묻는 값을 입력한다: 교회 이름 → 교회 키(slug, 소문자·숫자·하이픈 1~40자) → 프론트 주소(`https://…`, 경로·끝 슬래시 없이) → 교회 대표자 전화번호 → 이름 → 임시 비밀번호(8자 이상, 화면에 보이지 않음, 두 번 입력해 확인).
 4. 스크립트가 입력값을 다시 보여 주고(비밀번호 제외) 확인(`y`)을 받은 뒤 실행한다. 실패하면 아무것도 남지 않는다.
-5. 끝나면 스크립트가 그 교회 프론트에 넣을 값을 출력한다: `NEXT_PUBLIC_API_BASE=https://api.eunsaem.com/c/<slug>`. 이 값으로 프론트를 빌드·배포한다.
+5. 끝나면 스크립트가 그 교회 프론트에 넣을 값을 출력한다: `NEXT_PUBLIC_API_BASE=https://api.eunsaem.com/church/<slug>`. 이 값으로 프론트를 빌드·배포한다.
 6. 확인: 200과 빈 목록이 나오면 정상이다.
    ```bash
-   curl -s https://api.eunsaem.com/c/<slug>/api/main
+   curl -s https://api.eunsaem.com/church/<slug>/api/main
    ```
 7. 교회 대표자에게 전화번호와 임시 비밀번호를 전달한다. 대표자는 로그인해 비밀번호를 바꾸고, 다른 관리자(`ADMIN`)는 직접 추가한다.
 
@@ -41,7 +41,7 @@ API 도메인(`api.eunsaem.com`)은 전 교회 공용이라 DNS·Caddy 작업과
 
 **입력값 메모**
 
-- **slug**는 API 경로 접두사(`/c/<slug>`)가 되고 프론트 빌드에 박힌다. 나중에 바꾸지 않는다.
+- **slug**는 API 경로 접두사(`/church/<slug>`)가 되고 프론트 빌드에 박힌다. 나중에 바꾸지 않는다.
 - **프론트 주소**는 그 교회의 CORS 허용 origin(`churches.frontend_origin`)이 된다. 브라우저가 보내는 Origin과 글자 그대로 같아야 한다(`https://www.example.com`과 `https://example.com`은 다르다). 나중에 바꾸려면 DB의 `churches.frontend_origin`을 고친 뒤 backend를 재시작한다(교회 정보는 메모리에 캐시된다).
 - 스크립트 환경변수(선택): `POSTGRES_CONTAINER`(기본 `church-backend-postgres-1`), `ENV_FILE`(기본 `/srv/church-backend/.env` — `DB_USERNAME`·`DB_NAME`을 읽는다), `API_BASE`(안내 출력용).
 
@@ -82,10 +82,10 @@ psql -h 127.0.0.1 -U <DB_USERNAME> -d <DB_NAME> -v ON_ERROR_STOP=1 \
 
 ## 5. 등록 후 확인 체크리스트
 
-- [ ] `curl -s https://api.eunsaem.com/c/<slug>/api/main` → 200
+- [ ] `curl -s https://api.eunsaem.com/church/<slug>/api/main` → 200
 - [ ] 대표자 로그인 → 비밀번호 변경
   ```bash
-  curl -s -X POST https://api.eunsaem.com/c/<slug>/api/auth/login \
+  curl -s -X POST https://api.eunsaem.com/church/<slug>/api/auth/login \
     -H 'Content-Type: application/json' \
     -d '{"phone":"<대표자 전화번호>","password":"<임시 비밀번호>"}'
   ```

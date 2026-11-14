@@ -151,7 +151,7 @@ class NewChurchScriptTest {
     void 만든_계정으로_새_교회_주소에서_로그인된다() throws Exception {
         runScript();
 
-        String body = mvc.perform(post("/c/" + SLUG + "/api/auth/login")
+        String body = mvc.perform(post("/church/" + SLUG + "/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"phone\":\"%s\",\"password\":\"%s\"}".formatted(PHONE, PASSWORD)))
                 .andExpect(status().isOk())

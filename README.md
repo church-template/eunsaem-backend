@@ -18,7 +18,7 @@
 
 교회 홈페이지용 **공유형 멀티테넌트 백엔드**. 서버·DB·Redis 하나를 모든 교회가 함께 쓰고,
 교회별 차이(이름·slug·프론트 주소)는 `churches` 테이블의 행으로 둔다. 새 교회 추가 = 서버에서 등록 스크립트 1회 실행 —
-**코드 수정 0, 재배포 0**. 요청의 교회는 API 경로 접두사 `/c/{slug}`로 정한다.
+**코드 수정 0, 재배포 0**. 요청의 교회는 API 경로 접두사 `/church/{slug}`로 정한다.
 
 실제 화면은 [www.eunsaem.com](https://www.eunsaem.com)에서 볼 수 있습니다.
 
@@ -41,7 +41,7 @@ API 문서는 Swagger UI(`/docs/swagger-ui.html`, spec: `/v3/api-docs`)로 확�
   <img alt="은샘교회 백엔드 런타임·배포 구조: 브라우저 → Caddy(HTTPS) → Spring Boot API → PostgreSQL·Redis·업로드 볼륨, GitHub Actions → GHCR → 서버 pull" src="docs/images/architecture-light.svg" width="100%">
 </picture>
 
-요청은 Caddy가 HTTPS를 종료한 뒤 Spring Boot로 넘기고, 교회 필터(`/c/{slug}`)·JWT 필터와 경로·권한 인가를 거쳐 PostgreSQL·Redis·업로드 볼륨에 닿습니다.
+요청은 Caddy가 HTTPS를 종료한 뒤 Spring Boot로 넘기고, 교회 필터(`/church/{slug}`)·JWT 필터와 경로·권한 인가를 거쳐 PostgreSQL·Redis·업로드 볼륨에 닿습니다.
 점선은 배포 경로입니다. 서버 한 대(Docker Compose)가 모든 교회를 서비스하며, 교회별 값은 `churches` 테이블에 있습니다.
 
 ## 설계 원칙

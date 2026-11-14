@@ -35,7 +35,7 @@ DBN=$(grep '^DB_NAME=' .env | cut -d= -f2-); DBN=${DBN:-church_db}
 | 사전 연습 (§1) | 운영 덤프를 로컬에 복원해 새 버전·옛 버전을 띄워 본다 | 없음 | — |
 | 1차 배포 (§2) | backend 정지 → 백업 → `.env` → 배포 PR | 10분 안팎 | 이전 이미지 재배포 (§4) |
 | 자동 백업 등록 (§5) | cron에 `backup.sh` | 없음 | — |
-| 프론트 전환 (§6) | 은샘 프론트의 API 주소에 `/c/<slug>` 추가 | 없음 | 프론트 환경변수 원복 |
+| 프론트 전환 (§6) | 은샘 프론트의 API 주소에 `/church/<slug>` 추가 | 없음 | 프론트 환경변수 원복 |
 | 2차 배포 (§7) | `TENANT_DEFAULT_SLUG` 제거 + V20 | 수십 초 | 1차 이미지 재배포 (§7-4) |
 | 두 번째 교회 (§8) | `new-church.sh` | 없음 | — |
 
@@ -82,7 +82,7 @@ docker compose -f docker-compose.yml exec -T postgres pg_restore -U church_user 
 docker compose -f docker-compose.yml up -d --build backend
 curl -fs http://localhost:8080/actuator/health
 curl -s http://localhost:8080/api/main | head -c 300
-curl -s http://localhost:8080/c/<slug>/api/main | head -c 300
+curl -s http://localhost:8080/church/<slug>/api/main | head -c 300
 ```
 
 - 기대: 헬스 `UP`, 두 `/api/main` 응답이 같고 실제 공지·일정이 보인다.
@@ -110,7 +110,7 @@ curl -fs http://localhost:8080/actuator/health && curl -s http://localhost:8080/
 
 ```bash
 docker compose version          # 기대: v2.24 이상 (prod 오버레이의 ports: !override)
-cat /srv/caddy/Caddyfile        # 기대: reverse_proxy localhost:8080 (경로 제한 없음 — /c/… 가 막히지 않는다).
+cat /srv/caddy/Caddyfile        # 기대: reverse_proxy localhost:8080 (경로 제한 없음 — /church/… 가 막히지 않는다).
                                 # trusted_proxies 설정이 없어야 한다 — 있으면 클라이언트가 X-Forwarded-For로 IP를 속여
                                 # 로그인·문의 제한을 피할 수 있다
 grep -E '^(CORS_ALLOWED_ORIGIN)=' /srv/church-backend/.env   # 기대: https://www.eunsaem.com
@@ -167,7 +167,7 @@ docker compose exec -T postgres psql -U "$DBU" -d "$DBN" -At -c "select count(*)
 
 ```
 CHURCH_NAME=은샘교회
-CHURCH_SLUG=<slug>              # 소문자·숫자·하이픈. API 주소 /c/<slug>에 쓰인다. 나중에 바꾸기 번거롭다
+CHURCH_SLUG=<slug>              # 소문자·숫자·하이픈. API 주소 /church/<slug>에 쓰인다. 나중에 바꾸기 번거롭다
 TENANT_DEFAULT_SLUG=<같은 slug>   # 전환 기간 전용 — 접두사 없는 요청을 은샘으로 처리한다
 ```
 
@@ -198,7 +198,7 @@ grep -E '^(CHURCH_NAME|CHURCH_SLUG|TENANT_DEFAULT_SLUG|CORS_ALLOWED_ORIGIN)=' /s
 ```bash
 curl -fs http://localhost:8080/actuator/health
 curl -s -o /dev/null -w '%{http_code}\n' https://api.eunsaem.com/api/main
-curl -s -o /dev/null -w '%{http_code}\n' https://api.eunsaem.com/c/<slug>/api/main
+curl -s -o /dev/null -w '%{http_code}\n' https://api.eunsaem.com/church/<slug>/api/main
 sudo ss -tlnp | grep ':8080'
 ```
 
@@ -241,7 +241,7 @@ docker compose exec -T -e REDISCLI_AUTH="$RP" redis redis-cli --scan --pattern '
 `church_id`의 `DEFAULT`가 남아 있는 동안은 **이전 이미지를 다시 배포하는 것만으로** 되돌린다. 데이터는 잃지 않는다 —
 옛 코드는 새 컬럼을 무시하고, 옛 코드가 넣는 행은 기본값으로 은샘에 들어간다.
 
-1. (프론트를 이미 `/c/<slug>`로 바꿨다면) **프론트 환경변수를 먼저 원복·재배포한다.** 옛 백엔드는 `/c/…`를 모른다.
+1. (프론트를 이미 `/church/<slug>`로 바꿨다면) **프론트 환경변수를 먼저 원복·재배포한다.** 옛 백엔드는 `/church/…`를 모른다.
 2. GitHub → Actions → Deploy → Run workflow → `image_tag`에 §2-1에서 적어 둔 이전 버전(예: `0.0.52`)을 넣고 실행한다.
 3. `curl -fs http://localhost:8080/actuator/health`, 사이트 확인.
 
@@ -302,7 +302,7 @@ cd /srv/church-backend && ( . ~/.backup.env && ./scripts/backup.sh ); echo "exit
 은샘 프론트 레포(`eunsaem-frontend`)에서:
 
 1. 코드 두 곳 수정이 들어간 버전인지 확인한다 — `next.config.ts`의 이미지 허용 패턴, `src/lib/markdown.ts`의 본문 이미지 경로.
-2. 배포 환경변수 `NEXT_PUBLIC_API_BASE`를 `https://api.eunsaem.com/c/<slug>`로 바꾸고 다시 빌드·배포한다(빌드 시점에 박히는 값이다).
+2. 배포 환경변수 `NEXT_PUBLIC_API_BASE`를 `https://api.eunsaem.com/church/<slug>`로 바꾸고 다시 빌드·배포한다(빌드 시점에 박히는 값이다).
 3. 확인: 로그인, 메인, 설교 상세, 갤러리 이미지, **본문에 이미지가 들어간 글**(§1-4에서 기록한 글), 주보 PDF, 관리자 업로드.
 
 - 다르면: 환경변수를 원래 값(`https://api.eunsaem.com`)으로 되돌리고 재배포한다. 백엔드는 접두사 없는 요청도 그대로 받는다.
@@ -340,7 +340,7 @@ docker logs --since 168h church-backend-backend-1 2>&1 | grep -c '기본 교회�
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://api.eunsaem.com/api/notices          # 기대: 404
-curl -s -o /dev/null -w '%{http_code}\n' https://api.eunsaem.com/c/<slug>/api/notices   # 기대: 200
+curl -s -o /dev/null -w '%{http_code}\n' https://api.eunsaem.com/church/<slug>/api/notices   # 기대: 200
 ```
 
 ### 7-4. 되돌리기 (2차 배포 후) — 데이터를 잃지 않는 순서
@@ -365,7 +365,7 @@ done
 
 ```bash
 cd /srv/church-backend && API_BASE=https://api.eunsaem.com ./scripts/new-church.sh
-curl -s https://api.eunsaem.com/c/<새 slug>/api/main      # 기대: 200, 빈 목록
+curl -s https://api.eunsaem.com/church/<새 slug>/api/main      # 기대: 200, 빈 목록
 ```
 
 - 시험용 교회의 대표자 계정으로 로그인해 글을 하나 쓰고, 은샘 사이트에 그 글이 보이지 않는지 확인한다.

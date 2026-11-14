@@ -26,7 +26,7 @@
 
 - **앱 1개·PostgreSQL 1개·Redis 1개를 모든 교회가 공유한다**(공유형 멀티테넌시, #86). 교회별 DB·배포 인스턴스는 두지 않는다.
 - **격리는 `church_id` 컬럼 + Hibernate `@TenantId`**다. 19개 테이블에 `church_id`가 있고(`BaseTimeEntity`에 선언, `ContentTag`는 직접 선언) JPA 조회·저장에 자동 적용된다. 전 교회 공용 카탈로그 `permissions`와 순수 조인 테이블 `role_permissions`·`member_roles`에는 없다. DB 레벨 격리(RLS·스키마 분리)는 없다 — 격리는 코드와 격리 테스트가 지킨다.
-- **요청의 교회는 API 경로 접두사 `/c/{slug}`로 정한다**(`churches.slug`). `TenantFilter`가 보안 필터 체인보다 앞에서 접두사를 떼므로 경로 인가 규칙과 컨트롤러 매핑은 `/api/**` 그대로다. 등록되지 않은 slug는 `404 RESOURCE_NOT_FOUND`. `/actuator/health`·Swagger·`/error`는 교회 없이 통과한다.
+- **요청의 교회는 API 경로 접두사 `/church/{slug}`로 정한다**(`churches.slug`). `TenantFilter`가 보안 필터 체인보다 앞에서 접두사를 떼므로 경로 인가 규칙과 컨트롤러 매핑은 `/api/**` 그대로다. 등록되지 않은 slug는 `404 RESOURCE_NOT_FOUND`. `/actuator/health`·Swagger·`/error`는 교회 없이 통과한다.
 - `TENANT_DEFAULT_SLUG`가 설정돼 있으면 접두사 없는 `/api/**` 요청을 그 교회로 처리한다(로컬·테스트·첫 교회 전환 기간 전용). 비어 있으면 404, `churches`에 없는 slug면 기동 실패.
 - **fail-closed**: 교회가 정해지지 않은 DB 접근은 예외다. 기본 교회나 전체를 보는 루트 테넌트는 없다. 요청 밖 코드(스케줄러)는 `TenantContext.runAs(churchId, …)`를 트랜잭션 **바깥**에서 감싼다.
 - **네이티브 쿼리는 자동으로 걸러지지 않는다.** 반드시 `church_id = :churchId` 조건을 넣는다(`NativeQueryChurchIdTest`가 강제).
@@ -182,7 +182,7 @@ USER         priority 0     is_system true   (가입 시 자동 부여, 갤러�
   "cid": 1
 }
 ```
-- `cid`는 토큰을 발급한 교회의 id다(access 토큰에만 있다). 요청 교회(`/c/{slug}`)와 `cid`가 다르거나 `cid`가 없으면 무효 토큰으로 본다(`401 INVALID_TOKEN`) — 한 교회의 토큰은 다른 교회에서 통하지 않는다.
+- `cid`는 토큰을 발급한 교회의 id다(access 토큰에만 있다). 요청 교회(`/church/{slug}`)와 `cid`가 다르거나 `cid`가 없으면 무효 토큰으로 본다(`401 INVALID_TOKEN`) — 한 교회의 토큰은 다른 교회에서 통하지 않는다.
 - refresh 토큰은 `cid`가 없다. 다른 교회 접두사로 갱신하면 회원 조회가 그 교회 범위라 "회원 없음"으로 실패한다.
 - JWT 시크릿(`JWT_SECRET`)은 플랫폼 전체에 하나다.
 
@@ -194,7 +194,7 @@ USER         priority 0     is_system true   (가입 시 자동 부여, 갤러�
 - `/api/admin/**` → 해당 쓰기/관리 권한 필요(예: `SERMON_WRITE`).
 - `/api/gallery/**` → 로그인 + `GALLERY_VIEW` 필요(회원 전용 조회. 공개가 아님).
 - 그 외 `/api/**` 조회 → 공개.
-- 이 규칙은 교회 접두사 `/c/{slug}`를 뗀 뒤의 경로에 적용된다(§2). `/c/{slug}/api/admin/**`도 똑같이 보호된다.
+- 이 규칙은 교회 접두사 `/church/{slug}`를 뗀 뒤의 경로에 적용된다(§2). `/church/{slug}/api/admin/**`도 똑같이 보호된다.
 
 **위계 검증 (priority 기반)** — 권한 상승(escalation) 차단을 위해 아래 모든 작업에 동일 적용한다.
 - 회원에게 역할 부여/회수(위임/박탈): 대상 역할의 priority가 요청자 maxPriority보다 **엄격히 낮아야** 한다(동급 차단 — 상위 역할만 하위를 위임/박탈). 동급이거나 초과면 거부(403). 최상위 SUPER_ADMIN은 위에 아무것도 없어 API 위임 불가 — 시드/DB로만 구성.
@@ -284,7 +284,7 @@ USER         priority 0     is_system true   (가입 시 자동 부여, 갤러�
 - 서버 저장 시에도 최소 검증(길이 제한 등)은 두되, 마크다운 원본의 순수성을 위해 HTML 새니타이즈는 프론트 렌더 단계에서 수행한다.
 - 목록 조회는 본문(`content`)을 제외하고 카드용 메타데이터(제목·태그·조회수·작성일·작성자 등)만 내린다. 별도 요약(summary) 필드는 두지 않으며, 상세 조회에서만 `content`를 반환한다.
 - **본문 내 이미지는 전체 URL이 아니라 미디어 id로 참조**한다. 표준 `![](url)` 대신 `![](media:{id})` 형태(예: `![설명](media:42)`)로 저장한다. 본문에 도메인이 박히지 않으므로 교회마다 도메인이 달라도(템플릿) 본문 데이터는 불변이다.
-- 프론트는 렌더 직전 `media:{id}`를 실제 접근 URL(`<API 베이스>/c/<slug>/api/media/{id}`)로 치환한 뒤 새니타이즈하여 표시한다. 이 치환은 기존 마크다운 렌더·새니타이즈 파이프라인에 정규식 한 단계로 흡수된다.
+- 프론트는 렌더 직전 `media:{id}`를 실제 접근 URL(`<API 베이스>/church/<slug>/api/media/{id}`)로 치환한 뒤 새니타이즈하여 표시한다. 이 치환은 기존 마크다운 렌더·새니타이즈 파이프라인에 정규식 한 단계로 흡수된다.
 - **설계 노트(트레이드오프):** 미디어-콘텐츠 관계는 별도 연결 테이블이 아니라 본문 텍스트 내부의 `media:{id}` 문자열로 표현된다. 즉 이 관계는 정규화된 행이 아니라 비정규화된 텍스트 안에 존재한다. 이는 마크다운 본문 어느 위치에나 이미지를 자유롭게 삽입하기 위한 의도된 선택이며(노션·깃허브 등 마크다운 CMS의 공통 방식), 그 대가로 참조 추적은 LIKE 검색에 의존한다(아래 미디어 라이브러리 참조).
 
 ### 5.1 인증 (Auth)
@@ -704,7 +704,7 @@ com.elipair.church
 │   ├── exception/               // 전역 예외 핸들러(RFC 7807), 커스텀 예외
 │   ├── common/                  // 공통 응답(Page 래퍼), BaseEntity, 공통 enum
 │   ├── storage/                 // FileStorage 인터페이스 + LocalFileStorage 구현
-│   └── tenant/                  // 멀티테넌시: TenantFilter(/c/{slug}), TenantContext, ChurchResolver
+│   └── tenant/                  // 멀티테넌시: TenantFilter(/church/{slug}), TenantContext, ChurchResolver
 │
 └── domain/
     ├── auth/                    // 로그인·토큰 재발급·로그아웃
@@ -734,7 +734,7 @@ com.elipair.church
 - 업로드 파일은 **로컬 디스크**에 저장하고, 그 디렉터리(`FILE_UPLOAD_DIR`, 예: `/app/uploads`)를 **Docker named volume에 마운트**한다. 컨테이너를 지워도 volume이 살아있으면 파일은 보존된다.
 - 저장 로직은 `FileStorage` **인터페이스로 추상화**하고, 1차 구현은 `LocalFileStorage`로 한다. 향후 교회가 커져 OCI Object Storage나 S3로 옮길 경우 구현체만 교체하면 되도록 설계한다.
 - 저장 키는 `churches/{churchId}/yyyy/MM/{uuid}.ext`다(`media.stored_path`, 불투명 키). 멀티테넌시 전환 전에 올린 파일은 옛 키(`yyyy/MM/…`)를 그대로 쓴다. 키가 곧 객체 키라 S3로 옮길 때 DB 값을 바꾸지 않는다.
-- 파일 접근 URL은 프론트가 `<API 베이스>/c/<slug>/api/media/{id}`로 조립한다. 본문은 `media:{id}`만 저장하므로 URL 베이스가 교회마다 달라도 본문은 불변. `FILE_BASE_URL`은 바인딩만 되고 읽는 코드가 없는 죽은 설정이다.
+- 파일 접근 URL은 프론트가 `<API 베이스>/church/<slug>/api/media/{id}`로 조립한다. 본문은 `media:{id}`만 저장하므로 URL 베이스가 교회마다 달라도 본문은 불변. `FILE_BASE_URL`은 바인딩만 되고 읽는 코드가 없는 죽은 설정이다.
 - 업로드 최대 크기는 운영자가 `FILE_MAX_SIZE`(바이트, 기본 10MB=10485760)로 설정한다. 코드에 박힌 고정값이 아니라 `.env`로 조정하는 값(전 교회 공용)이며, 이 한도를 **초과하면 업로드를 거부**(`413 FILE_SIZE_EXCEEDED`)할 뿐 서버가 이미지를 리사이즈·압축하지는 않는다(렌더·가공은 프론트 몫). 검증은 `FileStorage` 저장 시점에서 수행한다.
 - OCI 배포 시: 업로드 volume을 OCI **Block Volume**에 연결하고 스냅샷 백업을 켤 것(권장). 단일 Compute 인스턴스 + docker compose 구성을 전제로 한다(다중 노드/OKE로 가면 공유 스토리지 필요).
 
@@ -755,7 +755,7 @@ com.elipair.church
 ```
 # 첫 교회 — V18 마이그레이션이 churches 첫 행을 만들 때 한 번 읽는다(필수, 이후에도 지우지 않는다)
 CHURCH_NAME=은혜교회
-CHURCH_SLUG=grace            # API 경로 접두사 /c/<slug>
+CHURCH_SLUG=grace            # API 경로 접두사 /church/<slug>
 CORS_ALLOWED_ORIGIN=https://gracechurch.kr   # 첫 교회의 프론트 origin
 
 # 접두사 없는 /api/** 요청을 처리할 교회(로컬·전환 기간 전용, 선택). 비우면 404
@@ -801,8 +801,8 @@ FILE_MAX_SIZE=10485760       # 업로드 최대 크기(바이트). 운영자 조
 코드 수정·재배포·DNS 작업이 없다. 정본 절차는 `docs/setup-new-church.md`.
 1. 운영 서버에 SSH 접속 → `cd /srv/church-backend && ./scripts/new-church.sh`.
 2. 교회 이름, slug, 프론트 주소, 교회 대표자 전화번호·이름·임시 비밀번호를 입력한다. 스크립트가 `churches` 행 + 기본 역할 4종 + 대표자(SUPER_ADMIN)를 원자적으로 만든다.
-3. 출력된 `NEXT_PUBLIC_API_BASE=https://<공용API>/c/<slug>`를 그 교회 프론트 환경변수에 넣고 빌드·배포한다.
-4. `curl -s https://<공용API>/c/<slug>/api/main`이 200인지 확인한다.
+3. 출력된 `NEXT_PUBLIC_API_BASE=https://<공용API>/church/<slug>`를 그 교회 프론트 환경변수에 넣고 빌드·배포한다.
+4. `curl -s https://<공용API>/church/<slug>/api/main`이 200인지 확인한다.
 5. 대표자에게 전화번호와 임시 비밀번호를 전달한다. 대표자는 로그인해 비밀번호를 바꾼다.
 
 교회 등록 API·관리 화면은 없다(의도). 권한을 `MEMBER`에 추가하는 마이그레이션을 쓰면 `scripts/new-church.sql`도 함께 고친다.

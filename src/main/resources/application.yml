@@ -51,7 +51,7 @@ jwt:
   access-expiry: ${JWT_ACCESS_EXPIRY:3600}
   refresh-expiry: ${JWT_REFRESH_EXPIRY:1209600}
 tenant:
-  # 접두사(/c/{slug}) 없는 /api/** 요청을 처리할 교회. 비우면 404. 로컬·테스트·전환 기간 전용(#86).
+  # 접두사(/church/{slug}) 없는 /api/** 요청을 처리할 교회. 비우면 404. 로컬·테스트·전환 기간 전용(#86).
   default-slug: ${TENANT_DEFAULT_SLUG:}
 file:
   upload-dir: ${FILE_UPLOAD_DIR:/app/uploads}

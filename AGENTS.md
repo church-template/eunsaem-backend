@@ -2,7 +2,7 @@
 
 교회 홈페이지용 **공유형 멀티테넌트 백엔드**(Spring Boot 4.0.x · Java 21 · PostgreSQL 16 · Redis 7 · Flyway).
 앱·DB·Redis 하나를 모든 교회가 공유한다(#86) — 격리는 `church_id` 컬럼 + Hibernate `@TenantId`,
-요청의 교회는 API 경로 접두사 `/c/{slug}`. 교회별 값은 `churches` 테이블 행이고 `.env`는 플랫폼 공용 값만 담는다.
+요청의 교회는 API 경로 접두사 `/church/{slug}`. 교회별 값은 `churches` 테이블 행이고 `.env`는 플랫폼 공용 값만 담는다.
 전체 설계 정본: `docs/church-backend-spec.md`(한국어).
 
 작업 언어는 **한국어**: 커밋 `<type> : <설명>`(콜론 앞 공백, feat/fix/refactor/docs/test/chore/perf/ci),
@@ -30,7 +30,7 @@
   대상 최고 priority ≤ 요청자 maxPriority). 역할·직분과 "마지막 SUPER_ADMIN" 집계는 교회 단위. → `rbac-authorization.md`
 - **경로 인가**: `/api/admin/**` 인증+메서드 권한 · `/api/gallery/**`·`/api/bible-challenges/**`·`/api/sermons/**`·`/api/vehicle-runs/**`
   회원전용(각 `GALLERY_VIEW`/`CHALLENGE_PARTICIPATE`/`SERMON_VIEW`/`VEHICLE_APPLY`) · 나머지 public(`/api/main` 포함, 의도적).
-  교회 접두사 `/c/{slug}`는 `TenantFilter`가 매처보다 먼저 떼므로 매처·컨트롤러 경로는 `/api/**` 그대로.
+  교회 접두사 `/church/{slug}`는 `TenantFilter`가 매처보다 먼저 떼므로 매처·컨트롤러 경로는 `/api/**` 그대로.
   정본: `SecurityConfig` 매처 체인. → `rbac-authorization.md`
 - **JWT**: `sub`=member uuid(BIGINT id 금지), payload는 평탄화된 permissions+maxPriority+`cid`(교회 id).
   `cid`가 요청 교회와 다르거나 없으면 401 `INVALID_TOKEN`. `JWT_SECRET`은 플랫폼 전체에 하나. → `rbac-authorization.md`
