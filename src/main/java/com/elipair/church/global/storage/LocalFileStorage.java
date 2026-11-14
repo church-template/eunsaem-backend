@@ -2,6 +2,7 @@ package com.elipair.church.global.storage;
 
 import com.elipair.church.global.exception.BusinessException;
 import com.elipair.church.global.exception.ErrorCode;
+import com.elipair.church.global.tenant.TenantContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
@@ -48,8 +49,10 @@ public class LocalFileStorage implements FileStorage {
         if (file.getSize() > maxSize) {
             throw new BusinessException(ErrorCode.FILE_SIZE_EXCEEDED);
         }
-        String key =
-                SHARD.format(LocalDate.now()) + "/" + UUID.randomUUID() + extensionSuffix(file.getOriginalFilename());
+        // 멀티테넌시(#86): 키는 교회별 접두사로 시작한다. 키는 불투명 값이라 전환 전 파일(접두사 없음)도 그대로 유효하고,
+        // S3로 옮길 때는 이 키가 곧 객체 키가 된다. load/delete는 키만 받으며 교회 검사는 media 행 조회가 담당한다.
+        String key = "churches/" + TenantContext.require() + "/" + SHARD.format(LocalDate.now()) + "/"
+                + UUID.randomUUID() + extensionSuffix(file.getOriginalFilename());
         Path target = root.resolve(key).normalize();
         if (!target.startsWith(root)) {
             throw new BusinessException(ErrorCode.FILE_STORAGE_ERROR);
