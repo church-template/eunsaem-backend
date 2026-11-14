@@ -17,7 +17,8 @@ public interface BulletinRepository extends JpaRepository<Bulletin, Long> {
 
     /** media_id FK 참조(스펙 §5.10) — 활성 주보만(deleted_at IS NULL). */
     @Query(
-            value = "select id as id, title as title from bulletins where media_id = :mediaId and deleted_at is null",
+            value =
+                    "select id as id, title as title from bulletins where church_id = :churchId and media_id = :mediaId and deleted_at is null",
             nativeQuery = true)
-    List<BulletinRefRow> findReferencesByMediaId(@Param("mediaId") long mediaId);
+    List<BulletinRefRow> findReferencesByMediaId(@Param("mediaId") long mediaId, @Param("churchId") long churchId);
 }

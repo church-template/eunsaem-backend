@@ -26,9 +26,9 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
      */
     @Query(
             value =
-                    "select id as id, name as title from departments where deleted_at is null and description ~ :pattern",
+                    "select id as id, name as title from departments where church_id = :churchId and deleted_at is null and description ~ :pattern",
             nativeQuery = true)
-    List<DepartmentRefRow> findReferencesByMedia(@Param("pattern") String pattern);
+    List<DepartmentRefRow> findReferencesByMedia(@Param("pattern") String pattern, @Param("churchId") long churchId);
 
     /**
      * 계층 변경 트랜잭션 직렬화(설계 §5.3). pg_advisory_xact_lock은 트랜잭션 종료 시 자동 해제(수동 unlock 불필요).

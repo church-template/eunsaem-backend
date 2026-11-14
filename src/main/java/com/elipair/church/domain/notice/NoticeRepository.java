@@ -21,7 +21,8 @@ public interface NoticeRepository extends JpaRepository<Notice, Long>, JpaSpecif
      * pattern 예: "media:42($|[^0-9])" — 42가 media:420/421에 매칭되지 않는다.
      */
     @Query(
-            value = "select id as id, title as title from notices " + "where deleted_at is null and content ~ :pattern",
+            value = "select id as id, title as title from notices "
+                    + "where church_id = :churchId and deleted_at is null and content ~ :pattern",
             nativeQuery = true)
-    List<NoticeRefRow> findReferencesByMedia(@Param("pattern") String pattern);
+    List<NoticeRefRow> findReferencesByMedia(@Param("pattern") String pattern, @Param("churchId") long churchId);
 }

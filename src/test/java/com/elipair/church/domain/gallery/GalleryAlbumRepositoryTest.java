@@ -55,7 +55,7 @@ class GalleryAlbumRepositoryTest {
         repository.saveAndFlush(GalleryAlbum.create("42참조", "본문 ![](media:42) 끝"));
         repository.saveAndFlush(GalleryAlbum.create("420참조", "본문 ![](media:420) 끝"));
 
-        List<GalleryAlbumRefRow> rows = repository.findReferencesByMedia("media:42($|[^0-9])");
+        List<GalleryAlbumRefRow> rows = repository.findReferencesByMedia("media:42($|[^0-9])", 1L);
 
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).getTitle()).isEqualTo("42참조");

@@ -20,10 +20,12 @@ public interface GalleryPhotoRepository extends JpaRepository<GalleryPhoto, Long
 
     /** 목록 썸네일 배치 — 앨범당 첫 사진(min sort_order, 동률 id). PG DISTINCT ON. */
     @Query(
-            value = "select distinct on (album_id) album_id as albumId, media_id as mediaId "
-                    + "from gallery_photos where album_id in (:albumIds) order by album_id, sort_order, id",
+            value =
+                    "select distinct on (album_id) album_id as albumId, media_id as mediaId "
+                            + "from gallery_photos where church_id = :churchId and album_id in (:albumIds) order by album_id, sort_order, id",
             nativeQuery = true)
-    List<AlbumThumbnailRow> findThumbnails(@Param("albumIds") Collection<Long> albumIds);
+    List<AlbumThumbnailRow> findThumbnails(
+            @Param("albumIds") Collection<Long> albumIds, @Param("churchId") long churchId);
 
     /** 목록 사진수 배치. */
     @Query("select p.albumId as albumId, count(p) as count from GalleryPhoto p "
@@ -37,7 +39,7 @@ public interface GalleryPhotoRepository extends JpaRepository<GalleryPhoto, Long
     @Query(
             value = "select distinct a.id as id, a.title as title from gallery_photos p "
                     + "join gallery_albums a on a.id = p.album_id "
-                    + "where p.media_id = :mediaId and a.deleted_at is null",
+                    + "where p.church_id = :churchId and p.media_id = :mediaId and a.deleted_at is null",
             nativeQuery = true)
-    List<GalleryPhotoRefRow> findReferencesByMediaId(@Param("mediaId") long mediaId);
+    List<GalleryPhotoRefRow> findReferencesByMediaId(@Param("mediaId") long mediaId, @Param("churchId") long churchId);
 }
