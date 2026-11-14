@@ -3,9 +3,16 @@ package com.elipair.church.global.tenant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class TenantContextTest {
+
+    /** 전역 확장(TenantTestSupport)이 깔아 둔 기본 교회를 걷어 낸다 — 이 테스트는 "값 없음"에서 시작해야 한다. */
+    @BeforeEach
+    void clearDefaultTenant() {
+        TenantContext.clear();
+    }
 
     @Test
     void require_없으면_예외() {

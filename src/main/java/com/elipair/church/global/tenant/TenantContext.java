@@ -39,6 +39,19 @@ public final class TenantContext {
         }
     }
 
+    /**
+     * 테스트 지원 전용 — JUnit 확장은 테스트 본문을 감쌀 수 없어 runAs를 쓸 수 없다.
+     * 메인 코드는 복원이 보장되는 {@link #runAs}/{@link #callAs}만 쓴다(ArchUnit 규칙으로 강제).
+     */
+    public static void set(Long churchId) {
+        restore(churchId);
+    }
+
+    /** 테스트 지원 전용 — {@link #set} 참고. */
+    public static void clear() {
+        CURRENT.remove();
+    }
+
     /** 같은 패키지 전용 — 체크 예외를 던지는 블록(필터 체인)을 감쌀 때 try-with-resources로 쓴다. */
     static Scope enter(long churchId) {
         Long previous = CURRENT.get();

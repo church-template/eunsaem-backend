@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.elipair.church.TestcontainersConfiguration;
 import com.elipair.church.global.config.JpaConfig;
+import com.elipair.church.global.tenant.TenantContext;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,8 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -66,5 +69,21 @@ class RoleRepositoryTest {
         assertThat(permissionRepository.findByNameIn(List.of("SERMON_WRITE", "NOPE")))
                 .extracting(Permission::getName)
                 .containsExactly("SERMON_WRITE");
+    }
+
+    /** 유니크는 교회 단위다(#86). 테넌트는 트랜잭션을 열 때 고정되므로 테스트 트랜잭션 밖에서 교회별로 저장한다. */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void same_name_coexists_across_churches() {
+        try {
+            TenantContext.runAs(1L, () -> roleRepository.saveAndFlush(Role.create("SHARED", 500, "교회1")));
+            TenantContext.runAs(2L, () -> roleRepository.saveAndFlush(Role.create("SHARED", 500, "교회2")));
+
+            assertThat(TenantContext.callAs(1L, () -> roleRepository.findAll())).hasSize(1);
+            assertThat(TenantContext.callAs(2L, () -> roleRepository.findAll())).hasSize(1);
+        } finally {
+            TenantContext.runAs(1L, () -> roleRepository.deleteAll());
+            TenantContext.runAs(2L, () -> roleRepository.deleteAll());
+        }
     }
 }

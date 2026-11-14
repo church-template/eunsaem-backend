@@ -12,6 +12,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -24,7 +25,12 @@ import lombok.NoArgsConstructor;
  * BaseTimeEntity를 상속하고 물리 삭제한다(스펙 §3.2). API 생성 역할은 is_system=false 고정.
  */
 @Entity
-@Table(name = "roles")
+@Table(
+        name = "roles",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uq_roles_church_name",
+                        columnNames = {"church_id", "name"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Role extends BaseTimeEntity {
@@ -33,7 +39,7 @@ public class Role extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String name;
 
     @Column(nullable = false)

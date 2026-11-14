@@ -59,11 +59,6 @@ file:
   upload-dir: ${FILE_UPLOAD_DIR:/app/uploads}
   base-url: ${FILE_BASE_URL:http://localhost:8080/api/media}
   max-size: ${FILE_MAX_SIZE:10485760}
-admin:
-  bootstrap:
-    phone: ${ADMIN_PHONE:}
-    name: ${ADMIN_NAME:}
-    password: ${ADMIN_PASSWORD:}
 cache:
   ttl: ${CACHE_TTL:60} # 캐시 TTL(초). /api/main 통합 조회 캐싱(스펙 §9)
 view:
